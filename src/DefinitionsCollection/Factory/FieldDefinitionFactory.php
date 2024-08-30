@@ -12,10 +12,24 @@ class FieldDefinitionFactory
 
     public function get(DataQualityFieldDefinition $definition): FieldDefinition
     {
-        list($fieldName, $title) = explode('@@@', $definition->getField());
+        $definitionField = $definition->getField();
 
-        if (strpos($title, '###')) {
-            list($title, $language) = explode('###', $title);
+        $fieldName = null;
+        $title = '';
+        $language = null;
+
+        if (preg_match('/^(.*)@@@(.*)###(.*)$/', $definitionField, $matches)) {
+            $fieldName = $matches[1];
+            $title = $matches[2];
+            $language = $matches[3];
+        } elseif (preg_match('/^(.*)###(.*)$/', $definitionField, $matches)) {
+            $fieldName = $matches[1];
+            $language = $matches[2];
+        } elseif (preg_match('/^(.*)@@@(.*)$/', $definitionField, $matches)) {
+            $fieldName = $matches[1];
+            $title= $matches[2];
+        } else {
+            $fieldName = $definitionField;
         }
 
         return new FieldDefinition(

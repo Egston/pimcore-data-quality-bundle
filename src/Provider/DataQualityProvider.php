@@ -80,7 +80,7 @@ final class DataQualityProvider
     }
 
     /**
-     * @throws DataQualityException|DefinitionException
+     * @throws DefinitionException
      */
     public function calculateDataQuality(AbstractObject $dataObject, DataQualityConfig $dataQualityConfig): DataQualityViewModel
     {
@@ -98,11 +98,10 @@ final class DataQualityProvider
                     continue;
                 }
 
-                $isLocalizedField     = false;
+                $isLocalizedField = $this->isLocalizedField($dataObject, $fieldDefinition->getFieldName());
                 $classFieldDefinition = $this->getClassFieldDefinition(
                     $dataObject,
                     $fieldDefinition->getFieldName(),
-                    $isLocalizedField
                 );
 
                 $validFields = [];
@@ -168,23 +167,32 @@ final class DataQualityProvider
         return $rules;
     }
 
-    /**
-     * @throws DataQualityException
-     */
-    private function getClassFieldDefinition(AbstractObject $dataObject, string $fieldName, bool &$isLocalizedField): Data
+    private function getClassFieldDefinition(AbstractObject $dataObject, string $fieldName): Data
     {
-        $classFieldDefinition = $dataObject->getClass()->getFieldDefinition($fieldName);
-        if (empty($classFieldDefinition)) {
-            $localizedFields = $dataObject->getClass()->getFieldDefinition('localizedfields');
-            if ($localizedFields) {
-                $classFieldDefinition = $localizedFields->getFieldDefinition($fieldName);
-                $isLocalizedField     = true;
-            } else {
-                throw new DataQualityException('fieldtype for field ' . $fieldName . ' is not supported.');
+        $classDefinition = $dataObject->getClass();
+        $classFieldDefinition = $classDefinition->getFieldDefinition($fieldName);
+
+        return $classFieldDefinition;
+    }
+
+    private function isLocalizedField(AbstractObject $dataObject, string $fieldName): bool
+    {
+        $classDefinition = $dataObject->getClass();
+        $fieldDefinition = $classDefinition->getFieldDefinition($fieldName);
+        $isLocalizedField = false;
+
+        // Loop through fields to find localizedfields container
+        foreach ($classDefinition->getFieldDefinitions() as $field) {
+            if ($field instanceof \Pimcore\Model\DataObject\ClassDefinition\Data\Localizedfields) {
+                $localizedFields = $field->getFieldDefinitions();
+                if (array_key_exists($fieldName, $localizedFields)) {
+                    $isLocalizedField = true;
+                    break;
+                }
             }
         }
 
-        return $classFieldDefinition;
+        return $isLocalizedField;
     }
 
     private function isObjectBricks(Data $fieldDefinition): bool
