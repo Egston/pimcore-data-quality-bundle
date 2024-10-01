@@ -24,11 +24,18 @@ class DataQualityService
         return $this->dataQualityProvider->getDataQualityConfigs($dataObject);
     }
 
-    public function calculateDataQuality(AbstractObject $dataObject, DataQualityConfig $dataQualityConfig): DataQualityViewModel
-    {
+    public function calculateDataQuality(
+        AbstractObject $dataObject,
+        DataQualityConfig $dataQualityConfig,
+        bool $persist = true
+    ): DataQualityViewModel {
         $setting = $this->temporarilyEnableInheritance();
 
-        $data = $this->dataQualityProvider->calculateDataQuality($dataObject, $dataQualityConfig);
+        $data = $this->dataQualityProvider->calculateDataQuality(
+            $dataObject,
+            $dataQualityConfig,
+            $persist
+        );
 
         $this->restoreInheritance($setting);
 

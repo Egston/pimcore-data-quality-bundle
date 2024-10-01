@@ -33,9 +33,10 @@ services:
     Basilicom\DataQualityBundle\Provider\DataQualityProvider:
       public: true
 
-    Basilicom\DataQualityBundle\Model\Listener\ObjectPostUpdateListener:
+    Basilicom\DataQualityBundle\Model\Listener\ObjectPreSaveListener:
       tags:
-        - { name: kernel.event_listener, event: pimcore.dataobject.postUpdate, method: onPostUpdate }
+        - { name: kernel.event_listener, event: pimcore.dataobject.preAdd, method: onPreSave }
+        - { name: kernel.event_listener, event: pimcore.dataobject.preUpdate, method: onPreSave }
 
     Basilicom\DataQualityBundle\Command\UpdateDataQualityCommand:
       tags:

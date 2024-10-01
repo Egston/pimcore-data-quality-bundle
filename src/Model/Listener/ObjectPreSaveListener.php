@@ -9,7 +9,7 @@ use Pimcore\Event\Model\ElementEventInterface;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Tool\Admin;
 
-class ObjectPostUpdateListener
+class ObjectPreSaveListener
 {
     private static bool $listenerEnabled = true;
 
@@ -21,7 +21,7 @@ class ObjectPostUpdateListener
         $this->dataQualityService = $dataQualityService;
     }
 
-    public function onPostUpdate(ElementEventInterface $event)
+    public function onPreSave(ElementEventInterface $event)
     {
         try {
             $this->listenerIsEnabled();
@@ -45,7 +45,7 @@ class ObjectPostUpdateListener
                 if (!$isSystemAllowed && $this->isBackendUserActive()) {
                     continue;
                 }
-                $this->dataQualityService->calculateDataQuality($dataObject, $dataQualityConfig);
+                $this->dataQualityService->calculateDataQuality($dataObject, $dataQualityConfig, false);
             }
             self::$listenerEnabled = true;
         } catch (Exception $exception) {

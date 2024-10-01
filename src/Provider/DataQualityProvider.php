@@ -27,8 +27,12 @@ final class DataQualityProvider
         $this->fieldDefinitionFactory = $fieldDefinitionFactory;
     }
 
-    private function setDataQualityPercent(AbstractObject $dataObject, array $groups, string $fieldName): int
-    {
+    private function setDataQualityPercent(
+        AbstractObject $dataObject,
+        array $groups,
+        string $fieldName,
+        bool $persist
+    ): int {
         $countTotal    = 0;
         $countComplete = 0;
 
@@ -48,12 +52,13 @@ final class DataQualityProvider
             $dataObject,
             $setter
         )) {
-            DataObjectVersion::disable();
-
             $dataObject->$setter((float) $value);
-            $dataObject->save();
 
-            DataObjectVersion::enable();
+            if ($persist) {
+                DataObjectVersion::disable();
+                $dataObject->save();
+                DataObjectVersion::enable();
+            }
         }
 
         return $value;
@@ -82,8 +87,11 @@ final class DataQualityProvider
     /**
      * @throws DefinitionException
      */
-    public function calculateDataQuality(AbstractObject $dataObject, DataQualityConfig $dataQualityConfig): DataQualityViewModel
-    {
+    public function calculateDataQuality(
+        AbstractObject $dataObject,
+        DataQualityConfig $dataQualityConfig,
+        bool $persist
+    ): DataQualityViewModel {
         $dataQualityRules = $this->getDataQualityRules($dataQualityConfig);
 
         $dataQualityGroups = [];
@@ -142,7 +150,12 @@ final class DataQualityProvider
             );
         }
 
-        $percent = $this->setDataQualityPercent($dataObject, $dataQualityGroups, $dataQualityConfig->getDataQualityField());
+        $percent = $this->setDataQualityPercent(
+            $dataObject,
+            $dataQualityGroups,
+            $dataQualityConfig->getDataQualityField(),
+            $persist
+        );
 
         return new DataQualityViewModel(
             $dataQualityConfig->getDataQualityName(),
