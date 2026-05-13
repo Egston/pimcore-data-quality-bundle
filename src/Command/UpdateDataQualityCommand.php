@@ -115,12 +115,9 @@ class UpdateDataQualityCommand extends AbstractCommand
                 $this->batchSize
             );
 
-            $output = [];
-            exec($commandPrefix . ' ' . $consoleCommand, $output, $resultCode);
-
-            foreach ($output as $line) {
-                $this->output->writeln($line);
-            }
+            // passthru streams stdout; exec would buffer until child exit
+            // and make long batches look hung.
+            passthru($commandPrefix . ' ' . $consoleCommand, $resultCode);
 
             $batchNumber++;
         } while ($resultCode == 0);
