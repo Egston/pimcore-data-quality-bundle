@@ -102,14 +102,18 @@ class UpdateDataQualityCommand extends AbstractCommand
     {
         $batchNumber = 1;
         do {
-            $commandPrefix = 'env php '. realpath(PIMCORE_PROJECT_ROOT.DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR.'console');
+            $consolePath = realpath(PIMCORE_PROJECT_ROOT . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'console');
             chdir(PIMCORE_PROJECT_ROOT);
 
-            $consoleCommand = $this->getName()
-                . ' --batch-number=' . $batchNumber
-                . ($fullSave ? ' --full-save' : '')
-                . ' ' . $qualityConfigId
-                . ' ' . $this->batchSize;
+            $commandPrefix  = 'env php ' . escapeshellarg($consolePath);
+            $consoleCommand = sprintf(
+                '%s --batch-number=%d%s %d %d',
+                escapeshellarg($this->getName()),
+                $batchNumber,
+                $fullSave ? ' --full-save' : '',
+                $qualityConfigId,
+                $this->batchSize
+            );
 
             $output = [];
             exec($commandPrefix . ' ' . $consoleCommand, $output, $resultCode);
