@@ -39,29 +39,27 @@ class ObjectPreSaveListener
                 return; // no data quality configurations
             }
 
-            self::$listenerEnabled = false;
-            foreach ($dataQualityConfigs as $dataQualityConfig) {
-                $isSystemAllowed = (bool) $dataQualityConfig->getDataQualitySystemAllowed();
-                if (!$isSystemAllowed && $this->isBackendUserActive()) {
-                    continue;
+            self::withListenerDisabled(function () use ($dataObject, $dataQualityConfigs): void {
+                foreach ($dataQualityConfigs as $dataQualityConfig) {
+                    $isSystemAllowed = (bool) $dataQualityConfig->getDataQualitySystemAllowed();
+                    if (!$isSystemAllowed && $this->isBackendUserActive()) {
+                        continue;
+                    }
+                    $this->dataQualityService->calculateDataQuality($dataObject, $dataQualityConfig, false);
                 }
-                $this->dataQualityService->calculateDataQuality($dataObject, $dataQualityConfig, false);
-            }
-            self::$listenerEnabled = true;
+            });
         } catch (Exception $exception) {
             // just skip
         }
     }
 
     /**
-     * Used by the CLI full-save path to suppress the in-save DQ recompute
-     * (the CLI already computed the value just before calling save()).
-     *
-     * Note: suppression is in-process only. If $fn triggers a cascade that
-     * calls save() on a *different* object that also has a DQ config, that
-     * recompute is suppressed too for the duration of $fn.
+     * Run $fn with the pre-save DQ recompute suppressed; try/finally
+     * restores the previous state, including on throw. Suppression is
+     * in-process and scope-blind — cascading save()s of other DQ-aware
+     * objects are suppressed too for the duration of $fn.
      */
-    public static function withListenerDisabled(callable $fn)
+    public static function withListenerDisabled(callable $fn): mixed
     {
         $previous              = self::$listenerEnabled;
         self::$listenerEnabled = false;
