@@ -42,6 +42,10 @@ services:
       tags:
         - { name: console.command, command: 'dataquality:update' }
 
+    Basilicom\DataQualityBundle\Command\UpdateAllDataQualityCommand:
+      tags:
+        - { name: console.command, command: 'dataquality:update-all' }
+
     Basilicom\DataQualityBundle\EventSubscriber\:
       resource: '../../EventSubscriber/*'
       tags: [ kernel.event_listener ]
