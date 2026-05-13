@@ -68,10 +68,10 @@ class UpdateDataQualityCommand extends AbstractCommand
             $batchNumber     = (int)$input->getOption('batch-number');
             $qualityConfigId = (int)$input->getArgument('quality-config-id');
             if ($batchNumber === 0) {
-                $this->executeMainProcess($qualityConfigId);
-            } else {
-                $this->executeBatchProcess($qualityConfigId, $batchNumber);
+                return $this->executeMainProcess($qualityConfigId);
             }
+
+            $this->executeBatchProcess($qualityConfigId, $batchNumber);
         } catch (NoDataObjectsAvailableException $exception) {
             $this->output->writeln('Processing finished.');
 
@@ -86,9 +86,11 @@ class UpdateDataQualityCommand extends AbstractCommand
     }
 
     /**
-     * Spawn child processes (commands) to update the DataQuality in batches
+     * Spawn child processes (commands) to update the DataQuality in batches.
+     * The child returns STOP_CHILD_PROCESS for clean completion vs FAILURE for
+     * an exception mid-batch; preserve that distinction in the outer exit code.
      */
-    protected function executeMainProcess(int $qualityConfigId)
+    protected function executeMainProcess(int $qualityConfigId): int
     {
         $batchNumber = 1;
         do {
@@ -109,6 +111,8 @@ class UpdateDataQualityCommand extends AbstractCommand
 
             $batchNumber++;
         } while ($resultCode == 0);
+
+        return $resultCode === self::STOP_CHILD_PROCESS ? Command::SUCCESS : Command::FAILURE;
     }
 
     /**
