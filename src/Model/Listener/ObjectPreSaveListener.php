@@ -54,6 +54,25 @@ class ObjectPreSaveListener
     }
 
     /**
+     * Used by the CLI full-save path to suppress the in-save DQ recompute
+     * (the CLI already computed the value just before calling save()).
+     *
+     * Note: suppression is in-process only. If $fn triggers a cascade that
+     * calls save() on a *different* object that also has a DQ config, that
+     * recompute is suppressed too for the duration of $fn.
+     */
+    public static function withListenerDisabled(callable $fn)
+    {
+        $previous              = self::$listenerEnabled;
+        self::$listenerEnabled = false;
+        try {
+            return $fn();
+        } finally {
+            self::$listenerEnabled = $previous;
+        }
+    }
+
+    /**
      * @throws Exception
      */
     private function listenerIsEnabled(): void

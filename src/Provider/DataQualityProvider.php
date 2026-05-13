@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle\Provider;
@@ -7,9 +8,11 @@ use Basilicom\DataQualityBundle\Definition\DefinitionException;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
 use Basilicom\DataQualityBundle\Exception\DataQualityException;
+use Basilicom\DataQualityBundle\Model\Listener\ObjectPreSaveListener;
 use Basilicom\DataQualityBundle\View\DataQualityFieldViewModel;
 use Basilicom\DataQualityBundle\View\DataQualityGroupViewModel;
 use Basilicom\DataQualityBundle\View\DataQualityViewModel;
+use Pimcore\Db;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\DataQualityConfig;
@@ -31,7 +34,8 @@ final class DataQualityProvider
         AbstractObject $dataObject,
         array $groups,
         string $fieldName,
-        bool $persist
+        bool $persist,
+        bool $useFastPath = true
     ): int {
         $countTotal    = 0;
         $countComplete = 0;
@@ -55,13 +59,80 @@ final class DataQualityProvider
             $dataObject->$setter((float) $value);
 
             if ($persist) {
-                DataObjectVersion::disable();
-                $dataObject->save();
-                DataObjectVersion::enable();
+                // Fast path skips InheritanceHelper::saveChildData; a leaf
+                // is safe regardless of the class-level allowInherit flag.
+                $needsFanOut = $dataObject->getClass()->getAllowInherit()
+                    && $dataObject->getChildAmount() > 0;
+                if ($useFastPath && !$needsFanOut) {
+                    $this->writeFieldDirect($dataObject, $fieldName, (float) $value);
+                } else {
+                    ObjectPreSaveListener::withListenerDisabled(function () use ($dataObject) {
+                        DataObjectVersion::disable();
+                        try {
+                            $dataObject->save();
+                        } finally {
+                            DataObjectVersion::enable();
+                        }
+                    });
+                }
             }
         }
 
         return $value;
+    }
+
+    /**
+     * Direct UPDATE on object_store_<cid> + object_query_<cid>, bypassing
+     * save(). Does NOT bump modificationDate — a DQ recompute isn't a
+     * content edit. Only safe when the object has no children
+     * (saveChildData fan-out is skipped); caller must enforce that.
+     */
+    private function writeFieldDirect(AbstractObject $dataObject, string $fieldName, float $value): void
+    {
+        $classId = $dataObject->getClassId();
+        $id      = (int) $dataObject->getId();
+        if ($classId === '' || $id <= 0) {
+            throw new DataQualityException(
+                sprintf('Cannot write DQ field directly: object has invalid classId ("%s") or id (%d).', $classId, $id)
+            );
+        }
+
+        $db        = Db::get();
+        $storeTable = 'object_store_' . $classId;
+        $queryTable = 'object_query_' . $classId;
+
+        $db->transactional(function ($db) use ($storeTable, $queryTable, $fieldName, $value, $id): void {
+            // MySQL reports rows-affected as CHANGED, not MATCHED — a
+            // no-op UPDATE returns 0, indistinguishable from "row missing".
+            $exists = (bool) $db->fetchOne(
+                sprintf('SELECT 1 FROM %s WHERE oo_id = ?', $storeTable),
+                [$id]
+            );
+            if (!$exists) {
+                throw new DataQualityException(
+                    sprintf('Direct DQ write target missing: no row in %s for oo_id=%d.', $storeTable, $id)
+                );
+            }
+
+            $db->update($storeTable, [$fieldName => $value], ['oo_id' => $id]);
+            // object_query is absent for variants — UPDATE matches 0 silently.
+            $db->update($queryTable, [$fieldName => $value], ['oo_id' => $id]);
+        });
+
+        try {
+            AbstractObject::clearDependentCacheByObjectId($id);
+        } catch (\Throwable $e) {
+            \Pimcore\Logger::warning(sprintf(
+                'DataQualityBundle: cache invalidation failed for oo_id=%d: %s',
+                $id,
+                $e->getMessage()
+            ));
+            throw new DataQualityException(
+                sprintf('Cache invalidation failed for oo_id=%d after DB write.', $id),
+                0,
+                $e
+            );
+        }
     }
 
     /**
@@ -90,7 +161,8 @@ final class DataQualityProvider
     public function calculateDataQuality(
         AbstractObject $dataObject,
         DataQualityConfig $dataQualityConfig,
-        bool $persist
+        bool $persist,
+        bool $useFastPath = true
     ): DataQualityViewModel {
         $dataQualityRules = $this->getDataQualityRules($dataQualityConfig);
 
@@ -154,7 +226,8 @@ final class DataQualityProvider
             $dataObject,
             $dataQualityGroups,
             $dataQualityConfig->getDataQualityField(),
-            $persist
+            $persist,
+            $useFastPath
         );
 
         return new DataQualityViewModel(

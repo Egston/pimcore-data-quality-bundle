@@ -47,6 +47,12 @@ class UpdateAllDataQualityCommand extends AbstractCommand
                 null,
                 InputOption::VALUE_NONE,
                 'Stop on the first failing config (default: continue and report failures at the end).'
+            )
+            ->addOption(
+                'full-save',
+                null,
+                InputOption::VALUE_NONE,
+                'Persist via full DataObject save() instead of the default direct-column UPDATE. Slower (fires all Pimcore save events) but matches legacy behavior.'
             );
     }
 
@@ -61,6 +67,7 @@ class UpdateAllDataQualityCommand extends AbstractCommand
 
         $includeUnpublished = (bool)$input->getOption('include-unpublished');
         $failFast           = (bool)$input->getOption('fail-fast');
+        $fullSave           = (bool)$input->getOption('full-save');
 
         // Validate --only / --skip before any work begins
         $rawOnly = (array)$input->getOption('only');
@@ -163,7 +170,13 @@ class UpdateAllDataQualityCommand extends AbstractCommand
 
             $output->writeln(sprintf("\n<info>▶ Updating %s</info>", $label));
 
-            $cmd = sprintf('env php %s dataquality:update %d %d', escapeshellarg($consolePath), $id, $batchSize);
+            $cmd = sprintf(
+                'env php %s dataquality:update%s %d %d',
+                escapeshellarg($consolePath),
+                $fullSave ? ' --full-save' : '',
+                $id,
+                $batchSize
+            );
             passthru($cmd, $resultCode);
 
             if ($resultCode === 0) {

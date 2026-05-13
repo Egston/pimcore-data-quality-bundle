@@ -27,14 +27,16 @@ class DataQualityService
     public function calculateDataQuality(
         AbstractObject $dataObject,
         DataQualityConfig $dataQualityConfig,
-        bool $persist = true
+        bool $persist = true,
+        bool $useFastPath = true
     ): DataQualityViewModel {
         $setting = $this->temporarilyEnableInheritance();
 
         $data = $this->dataQualityProvider->calculateDataQuality(
             $dataObject,
             $dataQualityConfig,
-            $persist
+            $persist,
+            $useFastPath
         );
 
         $this->restoreInheritance($setting);

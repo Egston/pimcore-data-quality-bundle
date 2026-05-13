@@ -5,7 +5,6 @@ namespace Basilicom\DataQualityBundle\Command;
 use Basilicom\DataQualityBundle\Exception\DataQualityException;
 use Basilicom\DataQualityBundle\Exception\NoDataObjectsAvailableException;
 use Basilicom\DataQualityBundle\Service\DataQualityService;
-use Exception;
 use Pimcore\Console\AbstractCommand;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -20,7 +19,7 @@ class UpdateDataQualityCommand extends AbstractCommand
 {
     // Symfony clamps exit codes > 255 before exit(), so the sentinel
     // must fit in 0-255 to survive the parent shell boundary.
-    const STOP_CHILD_PROCESS = 87;
+    public const STOP_CHILD_PROCESS = 87;
 
     protected static $defaultName        = 'dataquality:update';
     protected static $defaultDescription = 'Re-compute and update data quality on objects.';
@@ -56,6 +55,12 @@ class UpdateDataQualityCommand extends AbstractCommand
                 null,
                 InputOption::VALUE_OPTIONAL,
                 'The number of the batch to process.'
+            )
+            ->addOption(
+                'full-save',
+                null,
+                InputOption::VALUE_NONE,
+                'Persist via full DataObject save() instead of the default direct-column UPDATE. Slower, but fires all Pimcore save events (postUpdate etc.).'
             );
     }
 
@@ -67,18 +72,19 @@ class UpdateDataQualityCommand extends AbstractCommand
                 $this->batchSize = $batchSize;
             }
 
+            $fullSave        = (bool)$input->getOption('full-save');
             $batchNumber     = (int)$input->getOption('batch-number');
             $qualityConfigId = (int)$input->getArgument('quality-config-id');
             if ($batchNumber === 0) {
-                return $this->executeMainProcess($qualityConfigId);
+                return $this->executeMainProcess($qualityConfigId, $fullSave);
             }
 
-            $this->executeBatchProcess($qualityConfigId, $batchNumber);
+            $this->executeBatchProcess($qualityConfigId, $batchNumber, $fullSave);
         } catch (NoDataObjectsAvailableException $exception) {
             $this->output->writeln('Processing finished.');
 
             return self::STOP_CHILD_PROCESS;
-        } catch (Exception $exception) {
+        } catch (DataQualityException|\Doctrine\DBAL\Exception $exception) {
             $this->output->writeln('Exception: ' . $exception->getMessage());
 
             return Command::FAILURE;
@@ -92,7 +98,7 @@ class UpdateDataQualityCommand extends AbstractCommand
      * The child returns STOP_CHILD_PROCESS for clean completion vs FAILURE for
      * an exception mid-batch; preserve that distinction in the outer exit code.
      */
-    protected function executeMainProcess(int $qualityConfigId): int
+    protected function executeMainProcess(int $qualityConfigId, bool $fullSave = false): int
     {
         $batchNumber = 1;
         do {
@@ -101,6 +107,7 @@ class UpdateDataQualityCommand extends AbstractCommand
 
             $consoleCommand = $this->getName()
                 . ' --batch-number=' . $batchNumber
+                . ($fullSave ? ' --full-save' : '')
                 . ' ' . $qualityConfigId
                 . ' ' . $this->batchSize;
 
@@ -123,9 +130,10 @@ class UpdateDataQualityCommand extends AbstractCommand
      * @throws NoDataObjectsAvailableException
      * @throws DataQualityException
      */
-    protected function executeBatchProcess(int $qualityConfigId, int $batchNumber)
+    protected function executeBatchProcess(int $qualityConfigId, int $batchNumber, bool $fullSave = false)
     {
-        $this->output->write('Processing batch #' . $batchNumber . ' ... ');
+        $mode = $fullSave ? 'full-save' : 'fast-path';
+        $this->output->write('Processing batch #' . $batchNumber . ' (' . $mode . ') ... ');
 
         $offset = ($batchNumber - 1) * $this->batchSize;
 
@@ -160,8 +168,22 @@ class UpdateDataQualityCommand extends AbstractCommand
             throw new NoDataObjectsAvailableException('There are no data objects left.');
         }
 
+        $useFastPath = !$fullSave;
         foreach ($list as $item) {
-            $this->dataQualityService->calculateDataQuality($item, $dataQualityConfig);
+            try {
+                $this->dataQualityService->calculateDataQuality($item, $dataQualityConfig, true, $useFastPath);
+            } catch (\Exception $e) {
+                throw new DataQualityException(
+                    sprintf(
+                        'Failed on oo_id=%d (classId=%s): %s',
+                        (int) $item->getId(),
+                        (string) $item->getClassId(),
+                        $e->getMessage()
+                    ),
+                    0,
+                    $e
+                );
+            }
         }
 
         $this->output->writeln('OK - ' . (($batchNumber - 1) * $this->batchSize) + $list->getCount());
