@@ -18,7 +18,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class UpdateDataQualityCommand extends AbstractCommand
 {
-    const STOP_CHILD_PROCESS = 987;
+    // Symfony clamps exit codes > 255 before exit(), so the sentinel
+    // must fit in 0-255 to survive the parent shell boundary.
+    const STOP_CHILD_PROCESS = 87;
 
     protected static $defaultName        = 'dataquality:update';
     protected static $defaultDescription = 'Re-compute and update data quality on objects.';
