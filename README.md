@@ -77,8 +77,25 @@ one- or multiple quality values are computed and stored in data objects.
    * an object is saved by a normal user (non-system user), or
    * the data quality tab or iframe is displayed, or
    * a full update (re-calculation) of all data quality values was performed via the console command:
-```
+
+```bash
+# Recalculate one config across all matching DataObjects
 bin/console dataquality:update <quality-config-id> <batch-size>
+
+# Iterate every published DataQualityConfig in turn, continue-on-error by default
+bin/console dataquality:update-all <batch-size> [--only=ID --skip=ID --include-unpublished --fail-fast]
+
+# Both commands default to the fast path: direct SQL UPDATE on
+# object_store_<cid> and object_query_<cid> plus a cache-tag clear.
+# Bypasses Pimcore's full save() pipeline (no events, no version bump,
+# no relation rewrite); the percentage is a denormalized cache.
+#
+# --full-save opts back into the full save() path for cases where
+# downstream code subscribes to postUpdate / save events for the affected
+# classes. Classes with allowInherit=true auto-fall-back to full-save
+# regardless of the flag, since direct UPDATE skips Pimcore's inheritance
+# fan-out to child object_query rows.
+bin/console dataquality:update-all <batch-size> --full-save
 ```
   
 
