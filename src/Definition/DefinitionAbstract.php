@@ -6,7 +6,7 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
 
 abstract class DefinitionAbstract implements DefinitionInterface
 {
-    const NECESSARY_PARAMETER_COUNT = 0;
+    public const NECESSARY_PARAMETER_COUNT = 0;
 
     public function getNecessaryParameterCount(): int
     {

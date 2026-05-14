@@ -40,6 +40,8 @@ services:
     Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory:
       public: true
 
+    Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface: '@Basilicom\DataQualityBundle\Resolver\FieldPathResolver'
+
     Basilicom\DataQualityBundle\Resolver\FieldPathResolver:
       public: true
 

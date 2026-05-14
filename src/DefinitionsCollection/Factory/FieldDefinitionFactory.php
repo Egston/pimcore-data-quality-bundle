@@ -10,7 +10,7 @@ use Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData;
 
 class FieldDefinitionFactory
 {
-    const DEFAULT_GROUP = '__default__';
+    public const DEFAULT_GROUP = '__default__';
 
     public function __construct(private readonly RuleRegistry $ruleRegistry)
     {
@@ -33,7 +33,7 @@ class FieldDefinitionFactory
             $language = $matches[2];
         } elseif (preg_match('/^(.*)@@@(.*)$/', $definitionField, $matches)) {
             $fieldName = $matches[1];
-            $title= $matches[2];
+            $title = $matches[2];
         } else {
             $fieldName = $definitionField;
         }

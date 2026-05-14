@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Tests\Helper;
 
 use Basilicom\DataQualityBundle\Definition\RuleContext;
-use Basilicom\DataQualityBundle\Resolver\FieldPathResolver;
+use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\DataQualityConfig;
 
@@ -30,7 +30,12 @@ final class RuleContextFactory
 
         self::setReadonly($reflection, $instance, 'object', self::placeholder(Concrete::class));
         self::setReadonly($reflection, $instance, 'config', self::placeholder(DataQualityConfig::class));
-        self::setReadonly($reflection, $instance, 'resolver', self::placeholder(FieldPathResolver::class));
+        self::setReadonly($reflection, $instance, 'resolver', new class () implements FieldPathResolverInterface {
+            public function resolve(Concrete $object, string $path, string $language): array
+            {
+                return [];
+            }
+        });
         self::setReadonly($reflection, $instance, 'flagsProvider', null);
         self::setReadonly($reflection, $instance, 'sourceLanguage', 'en');
         self::setReadonly($reflection, $instance, 'scoredLanguages', ['en', 'de']);

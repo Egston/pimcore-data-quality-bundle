@@ -161,7 +161,8 @@ class UpdateAllDataQualityCommand extends AbstractCommand
 
         foreach ($configs as $config) {
             $id    = (int)$config->getId();
-            $label = sprintf('#%d "%s" (class=%s, field=%s)',
+            $label = sprintf(
+                '#%d "%s" (class=%s, field=%s)',
                 $id,
                 (string)$config->getKey(),
                 (string)$config->getDataQualityClass(),

@@ -10,7 +10,7 @@ use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFac
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
 use Basilicom\DataQualityBundle\Exception\DataQualityException;
 use Basilicom\DataQualityBundle\Model\Listener\ObjectPreSaveListener;
-use Basilicom\DataQualityBundle\Resolver\FieldPathResolver;
+use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
 use Basilicom\DataQualityBundle\View\DataQualityFieldViewModel;
 use Basilicom\DataQualityBundle\View\DataQualityGroupViewModel;
 use Basilicom\DataQualityBundle\View\DataQualityViewModel;
@@ -28,7 +28,7 @@ final class DataQualityProvider
 {
     public function __construct(
         private readonly FieldDefinitionFactory $fieldDefinitionFactory,
-        private readonly FieldPathResolver $fieldPathResolver,
+        private readonly FieldPathResolverInterface $fieldPathResolver,
     ) {
     }
 

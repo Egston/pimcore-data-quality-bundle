@@ -6,7 +6,7 @@ namespace Basilicom\DataQualityBundle\Tests\Unit\Definition;
 
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\Provider\LanguageFlagsProvider;
-use Basilicom\DataQualityBundle\Resolver\FieldPathResolver;
+use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
 use Basilicom\DataQualityBundle\Resolver\ResolvedLeaf;
 use PHPUnit\Framework\TestCase;
 use Pimcore\Model\DataObject\Concrete;
@@ -70,7 +70,7 @@ final class RuleContextTest extends TestCase
 
     public function test_get_flags_by_lang_invokes_provider_exactly_once(): void
     {
-        $provider = new class implements LanguageFlagsProvider {
+        $provider = new class () implements LanguageFlagsProvider {
             public int $calls = 0;
 
             public function getName(): string
@@ -127,9 +127,9 @@ final class RuleContextTest extends TestCase
         self::assertSame(1, $resolver->callCount, 'null result must be cached; second call must not re-enter resolver');
     }
 
-    public function test_get_flags_by_lang_caches_null_when_provider_returns_no_flags(): void
+    public function test_get_flags_by_lang_memoises_empty_map_via_probed_sentinel(): void
     {
-        $provider = new class implements LanguageFlagsProvider {
+        $provider = new class () implements LanguageFlagsProvider {
             public int $calls = 0;
 
             public function getName(): string
@@ -159,6 +159,17 @@ final class RuleContextTest extends TestCase
         self::assertSame(1, $provider->calls, 'provider must be hit exactly once even when it returns an empty map');
     }
 
+    public function test_get_value_throws_when_resolver_returns_multiple_leaves(): void
+    {
+        $resolver = new MultiLeafResolver();
+        $context = $this->buildContext($resolver);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('getContainerLeaves');
+
+        $context->getValue('sections', 'de');
+    }
+
     public function test_scored_and_all_languages_default_to_provider_input(): void
     {
         $context = $this->buildContext(
@@ -183,7 +194,7 @@ final class RuleContextTest extends TestCase
      * @param string[] $allLanguages
      */
     private function buildContext(
-        FieldPathResolver $resolver,
+        FieldPathResolverInterface $resolver,
         ?LanguageFlagsProvider $flagsProvider = null,
         string $sourceLanguage = 'en',
         array $scoredLanguages = ['en', 'de'],
@@ -210,7 +221,7 @@ final class RuleContextTest extends TestCase
     }
 }
 
-final class CountingResolver extends FieldPathResolver
+final class CountingResolver implements FieldPathResolverInterface
 {
     public int $callCount = 0;
 
@@ -227,7 +238,7 @@ final class CountingResolver extends FieldPathResolver
 }
 
 /** Resolver that always returns zero leaves — used to pin null caching. */
-final class EmptyLeafCountingResolver extends FieldPathResolver
+final class EmptyLeafCountingResolver implements FieldPathResolverInterface
 {
     public int $callCount = 0;
 
@@ -236,5 +247,17 @@ final class EmptyLeafCountingResolver extends FieldPathResolver
         $this->callCount++;
 
         return [];
+    }
+}
+
+/** Resolver that always returns two leaves — used to pin the multi-leaf guard in getValue(). */
+final class MultiLeafResolver implements FieldPathResolverInterface
+{
+    public function resolve(Concrete $object, string $path, string $language): array
+    {
+        return [
+            new ResolvedLeaf($path . '[0]', $language, 'a'),
+            new ResolvedLeaf($path . '[1]', $language, 'b'),
+        ];
     }
 }

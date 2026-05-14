@@ -6,7 +6,7 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
 
 class MinimumStringLengthDefinition extends DefinitionAbstract
 {
-    const NECESSARY_PARAMETER_COUNT = 1;
+    public const NECESSARY_PARAMETER_COUNT = 1;
 
     /**
      * @throws DefinitionException

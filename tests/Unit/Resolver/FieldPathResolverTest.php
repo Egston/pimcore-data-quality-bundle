@@ -147,13 +147,62 @@ final class FieldPathResolverTest extends TestCase
         self::assertSame([], $leaves, 'resolver must disable inheritance before reading the FC container');
     }
 
+    public function test_terminal_fc_container_path_disables_inheritance_when_reading_container(): void
+    {
+        $parentFcItems = [['de' => 'Parent-de', 'en' => 'Parent-en']];
+        $child = $this->buildObjectWithInheritanceAwareSections(ownItems: [], parentItems: $parentFcItems);
+
+        $before = AbstractObject::getGetInheritedValues();
+        AbstractObject::setGetInheritedValues(true);
+        try {
+            $leaves = (new FieldPathResolver())->resolve($child, 'sections', 'de');
+        } finally {
+            AbstractObject::setGetInheritedValues($before);
+        }
+
+        self::assertSame([], $leaves, 'terminal container path must disable inheritance before reading the FC container');
+    }
+
+    public function test_empty_path_throws_invalid_field_path_exception(): void
+    {
+        $object = $this->buildObjectWithSku('x');
+
+        $this->expectException(InvalidFieldPathException::class);
+        $this->expectExceptionMessage('path is empty');
+
+        (new FieldPathResolver())->resolve($object, '', 'de');
+    }
+
+    public function test_missing_getter_throws_with_regenerate_classes_hint(): void
+    {
+        $object = $this->buildObjectWithSku('x');
+
+        // Replace the inner getSku with a no-getter object sharing the same class definition
+        $noGetterObject = new class ($object->getClass()) extends Concrete {
+            public function __construct(private readonly ClassDefinition $stubClass)
+            {
+            }
+
+            public function getClass(): ClassDefinition
+            {
+                return $this->stubClass;
+            }
+        };
+
+        $this->expectException(InvalidFieldPathException::class);
+        $this->expectExceptionMessage('getSku');
+        $this->expectExceptionMessage('regenerating Pimcore classes');
+
+        (new FieldPathResolver())->resolve($noGetterObject, 'sku', 'de');
+    }
+
     private function buildObjectWithSku(string $sku): Concrete
     {
         $skuField = new Input();
         $this->setProperty($skuField, 'name', 'sku');
         $classDef = $this->buildClassDefinition(['sku' => $skuField]);
 
-        return new class($classDef, $sku) extends Concrete {
+        return new class ($classDef, $sku) extends Concrete {
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly string $skuValue,
@@ -182,7 +231,7 @@ final class FieldPathResolverTest extends TestCase
 
         $classDef = $this->buildClassDefinition(['localizedfields' => $localized]);
 
-        return new class($classDef, $byLang) extends Concrete {
+        return new class ($classDef, $byLang) extends Concrete {
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly array $byLang,
@@ -223,7 +272,7 @@ final class FieldPathResolverTest extends TestCase
 
         $fcItems = [];
         foreach ($items as $byLang) {
-            $fcItems[] = new class($sectionItemDefinition, $byLang) extends FieldcollectionItem {
+            $fcItems[] = new class ($sectionItemDefinition, $byLang) extends FieldcollectionItem {
                 public function __construct(
                     private readonly \Pimcore\Model\DataObject\Fieldcollection\Definition $stubDef,
                     private readonly array $byLang,
@@ -244,7 +293,7 @@ final class FieldPathResolverTest extends TestCase
 
         $fc = new Fieldcollection($fcItems, 'sections');
 
-        return new class($classDef, $fc) extends Concrete {
+        return new class ($classDef, $fc) extends Concrete {
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly Fieldcollection $fc,
@@ -287,7 +336,7 @@ final class FieldPathResolverTest extends TestCase
         $buildFcItems = function (array $items) use ($sectionItemDefinition): array {
             $result = [];
             foreach ($items as $byLang) {
-                $result[] = new class($sectionItemDefinition, $byLang) extends FieldcollectionItem {
+                $result[] = new class ($sectionItemDefinition, $byLang) extends FieldcollectionItem {
                     public function __construct(
                         private readonly \Pimcore\Model\DataObject\Fieldcollection\Definition $stubDef,
                         private readonly array $byLang,
@@ -312,7 +361,7 @@ final class FieldPathResolverTest extends TestCase
         $ownFc = new Fieldcollection($buildFcItems($ownItems), 'sections');
         $parentFc = new Fieldcollection($buildFcItems($parentItems), 'sections');
 
-        return new class($classDef, $ownFc, $parentFc) extends Concrete {
+        return new class ($classDef, $ownFc, $parentFc) extends Concrete {
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly Fieldcollection $ownFc,
@@ -349,7 +398,7 @@ final class FieldPathResolverTest extends TestCase
 
         $classDef = $this->buildClassDefinition(['pricing' => $pricingField]);
 
-        $brickItem = new class($brickDefinition, $byLang) extends ObjectbrickItem {
+        $brickItem = new class ($brickDefinition, $byLang) extends ObjectbrickItem {
             public function __construct(
                 private readonly \Pimcore\Model\DataObject\Objectbrick\Definition $stubDef,
                 private readonly array $byLang,
@@ -367,7 +416,7 @@ final class FieldPathResolverTest extends TestCase
             }
         };
 
-        $brickContainer = new class($brickItem) extends Objectbrick {
+        $brickContainer = new class ($brickItem) extends Objectbrick {
             public function __construct(private readonly ObjectbrickItem $item)
             {
             }
@@ -378,7 +427,7 @@ final class FieldPathResolverTest extends TestCase
             }
         };
 
-        return new class($classDef, $brickContainer) extends Concrete {
+        return new class ($classDef, $brickContainer) extends Concrete {
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly Objectbrick $brickContainer,

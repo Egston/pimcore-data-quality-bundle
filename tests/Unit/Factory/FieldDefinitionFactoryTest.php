@@ -168,7 +168,7 @@ final class FieldDefinitionFactoryTest extends TestCase
 
     private function makeFieldDef(string $fieldName, ?string $condition): object
     {
-        return new class($fieldName, $condition) extends AbstractData {
+        return new class ($fieldName, $condition) extends AbstractData {
             public function __construct(
                 private readonly string $fieldNameValue,
                 private readonly ?string $conditionValue,

@@ -42,7 +42,7 @@ use Pimcore\Model\DataObject\Objectbrick\Data\AbstractData as ObjectbrickItem;
  * The resolver itself trusts the path — non-existent fields throw
  * `InvalidFieldPathException`.
  */
-class FieldPathResolver
+final class FieldPathResolver implements FieldPathResolverInterface
 {
     /**
      * @return ResolvedLeaf[]
@@ -192,7 +192,7 @@ class FieldPathResolver
         $inheritedBefore = AbstractObject::getGetInheritedValues();
         AbstractObject::setGetInheritedValues(false);
         try {
-            $fc = $this->callGetter($container, $segmentName);
+            $fc = $this->callGetter($container, $segmentName, null, $originalPath);
         } finally {
             AbstractObject::setGetInheritedValues($inheritedBefore);
         }
@@ -261,7 +261,7 @@ class FieldPathResolver
         string $originalPath,
         string $leafPath,
     ): array {
-        $brickContainer = $this->callGetter($container, $segmentName);
+        $brickContainer = $this->callGetter($container, $segmentName, null, $originalPath);
         if ($brickContainer === null) {
             return [];
         }
@@ -324,7 +324,7 @@ class FieldPathResolver
             $inheritedBefore = AbstractObject::getGetInheritedValues();
             AbstractObject::setGetInheritedValues(false);
             try {
-                $fc = $this->callGetter($container, $segmentName);
+                $fc = $this->callGetter($container, $segmentName, null, $originalPath);
             } finally {
                 AbstractObject::setGetInheritedValues($inheritedBefore);
             }
@@ -356,7 +356,7 @@ class FieldPathResolver
         }
 
         if ($segmentDef instanceof Objectbricks) {
-            $brickContainer = $this->callGetter($container, $segmentName);
+            $brickContainer = $this->callGetter($container, $segmentName, null, $originalPath);
             if ($brickContainer === null) {
                 return [];
             }
@@ -391,8 +391,8 @@ class FieldPathResolver
         }
 
         $value = $isLocalizedLeaf
-            ? $this->callGetter($container, $segmentName, $language)
-            : $this->callGetter($container, $segmentName);
+            ? $this->callGetter($container, $segmentName, $language, $originalPath)
+            : $this->callGetter($container, $segmentName, null, $originalPath);
 
         return [new ResolvedLeaf($leafPath, $language, $value)];
     }
@@ -412,12 +412,12 @@ class FieldPathResolver
         string $leafPathPrefix,
     ): array {
         $leaves = [];
-        foreach ($this->fieldDefinitionsOf($classDef) as $fieldName => $fieldDef) {
+        foreach ($this->fieldDefinitionsOf($classDef, $originalPath) as $fieldName => $fieldDef) {
             if (!$fieldDef instanceof Localizedfields) {
                 continue;
             }
             foreach ($fieldDef->getFieldDefinitions() as $localizedFieldName => $localizedFieldDef) {
-                $value = $this->callGetter($container, $localizedFieldName, $language);
+                $value = $this->callGetter($container, $localizedFieldName, $language, $originalPath);
                 $leaves[] = new ResolvedLeaf(
                     $leafPathPrefix . '.' . $localizedFieldName,
                     $language,
@@ -440,7 +440,7 @@ class FieldPathResolver
      */
     private function resolveFieldDefinition(object $classDef, string $name, string $originalPath): array
     {
-        foreach ($this->fieldDefinitionsOf($classDef) as $topLevelName => $fieldDef) {
+        foreach ($this->fieldDefinitionsOf($classDef, $originalPath) as $topLevelName => $fieldDef) {
             if ($topLevelName === $name) {
                 return ['def' => $fieldDef, 'localized' => false];
             }
@@ -466,13 +466,16 @@ class FieldPathResolver
     /**
      * @return array<string, Data>
      */
-    private function fieldDefinitionsOf(object $classDef): array
+    private function fieldDefinitionsOf(object $classDef, string $originalPath): array
     {
         if (!method_exists($classDef, 'getFieldDefinitions')) {
-            throw new \LogicException(sprintf(
-                'Class definition object of type "%s" does not implement getFieldDefinitions(); the resolver cannot walk it.',
-                get_debug_type($classDef),
-            ));
+            throw new InvalidFieldPathException(
+                $originalPath,
+                sprintf(
+                    'class definition object of type "%s" does not implement getFieldDefinitions(); the resolver cannot walk it',
+                    get_debug_type($classDef),
+                ),
+            );
         }
 
         /** @var array<string, Data> $defs */
@@ -481,12 +484,12 @@ class FieldPathResolver
         return $defs;
     }
 
-    private function callGetter(object $object, string $fieldName, ?string $language = null): mixed
+    private function callGetter(object $object, string $fieldName, ?string $language, string $originalPath): mixed
     {
         $getter = 'get' . ucfirst($fieldName);
         if (!method_exists($object, $getter)) {
             throw new InvalidFieldPathException(
-                $fieldName,
+                $originalPath,
                 sprintf(
                     'getter "%s" is absent on "%s" — the generated class file may be stale; try regenerating Pimcore classes',
                     $getter,

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Definition;
 
 use Basilicom\DataQualityBundle\Provider\LanguageFlagsProvider;
-use Basilicom\DataQualityBundle\Resolver\FieldPathResolver;
+use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
 use Basilicom\DataQualityBundle\Resolver\ResolvedLeaf;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\DataQualityConfig;
@@ -47,7 +47,7 @@ final class RuleContext
     public function __construct(
         private readonly Concrete $object,
         private readonly DataQualityConfig $config,
-        private readonly FieldPathResolver $resolver,
+        private readonly FieldPathResolverInterface $resolver,
         private readonly ?LanguageFlagsProvider $flagsProvider,
         private readonly string $sourceLanguage,
         private readonly array $scoredLanguages,

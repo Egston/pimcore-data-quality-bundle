@@ -6,5 +6,5 @@ use Basilicom\DataQualityBundle\Exception\AbstractDataQualityException;
 
 class DefinitionException extends AbstractDataQualityException
 {
-    const NOT_ENOUGH_PARAMETERS = 2000;
+    public const NOT_ENOUGH_PARAMETERS = 2000;
 }
