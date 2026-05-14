@@ -6,7 +6,7 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
 
 class NotEmptyDefinition extends DefinitionAbstract
 {
-    public function validate($content, Data $fieldDefinition, array $parameters): bool
+    public function validate($content, Data $fieldDefinition, array $parameters, RuleContext $context): bool
     {
         $fieldType = $fieldDefinition->getFieldtype();
 

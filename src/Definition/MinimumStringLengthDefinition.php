@@ -11,7 +11,7 @@ class MinimumStringLengthDefinition extends DefinitionAbstract
     /**
      * @throws DefinitionException
      */
-    public function validate($content, Data $fieldDefinition, array $parameters): bool
+    public function validate($content, Data $fieldDefinition, array $parameters, RuleContext $context): bool
     {
         $fieldName = $fieldDefinition->getName();
         $fieldType = $fieldDefinition->getFieldtype();

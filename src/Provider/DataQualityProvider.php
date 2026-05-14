@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Provider;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionException;
+use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
 use Basilicom\DataQualityBundle\Exception\DataQualityException;
 use Basilicom\DataQualityBundle\Model\Listener\ObjectPreSaveListener;
+use Basilicom\DataQualityBundle\Resolver\FieldPathResolver;
 use Basilicom\DataQualityBundle\View\DataQualityFieldViewModel;
 use Basilicom\DataQualityBundle\View\DataQualityGroupViewModel;
 use Basilicom\DataQualityBundle\View\DataQualityViewModel;
 use Pimcore\Db;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
+use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\DataQualityConfig;
 use Pimcore\Model\DataObject\Fieldcollection\Data\DataQualityFieldDefinition;
 use Pimcore\Model\DataObject\Objectbrick;
@@ -23,11 +26,10 @@ use Pimcore\Tool;
 
 final class DataQualityProvider
 {
-    private FieldDefinitionFactory $fieldDefinitionFactory;
-
-    public function __construct(FieldDefinitionFactory $fieldDefinitionFactory)
-    {
-        $this->fieldDefinitionFactory = $fieldDefinitionFactory;
+    public function __construct(
+        private readonly FieldDefinitionFactory $fieldDefinitionFactory,
+        private readonly FieldPathResolver $fieldPathResolver,
+    ) {
     }
 
     private function setDataQualityPercent(
@@ -166,6 +168,8 @@ final class DataQualityProvider
     ): DataQualityViewModel {
         $dataQualityRules = $this->getDataQualityRules($dataQualityConfig);
 
+        $context = $this->createRuleContext($dataObject, $dataQualityConfig);
+
         $dataQualityGroups = [];
 
         foreach ($dataQualityRules as $dataQualityRuleGroupName => $dataQualityRuleGroup) {
@@ -189,21 +193,24 @@ final class DataQualityProvider
                     [$valid, $validFields] = $this->validateObjectBricks(
                         $dataObject,
                         $getter,
-                        $fieldDefinition
+                        $fieldDefinition,
+                        $context
                     );
                 } elseif ($isLocalizedField) {
                     [$valid, $validFields] = $this->validateLanguages(
                         $dataObject,
                         $getter,
                         $fieldDefinition,
-                        $classFieldDefinition
+                        $classFieldDefinition,
+                        $context
                     );
                 } else {
                     $value = $dataObject->$getter();
                     $valid = $fieldDefinition->getConditionClass()->validate(
                         $value,
                         $classFieldDefinition,
-                        $fieldDefinition->getParameters()
+                        $fieldDefinition->getParameters(),
+                        $context
                     );
                 }
 
@@ -289,7 +296,8 @@ final class DataQualityProvider
     private function validateObjectBricks(
         AbstractObject $dataObject,
         string $getter,
-        FieldDefinition $fieldDefinition
+        FieldDefinition $fieldDefinition,
+        RuleContext $context
     ): array {
         $valid = true;
         $validFields = [];
@@ -301,7 +309,8 @@ final class DataQualityProvider
                 $validFields[$brickField] = $fieldDefinition->getConditionClass()->validate(
                     $brickItem->get($brickField),
                     $brickFieldValue,
-                    $fieldDefinition->getParameters()
+                    $fieldDefinition->getParameters(),
+                    $context
                 );
 
                 $valid = $valid && $validFields[$brickField];
@@ -318,7 +327,8 @@ final class DataQualityProvider
         AbstractObject $dataObject,
         string $getter,
         FieldDefinition $fieldDefinition,
-        Data $classFieldDefinition
+        Data $classFieldDefinition,
+        RuleContext $context
     ): array {
         $languages = Tool::getValidLanguages();
         $validLanguages = [];
@@ -329,7 +339,8 @@ final class DataQualityProvider
             $valid = $fieldDefinition->getConditionClass()->validate(
                 $value,
                 $classFieldDefinition,
-                $fieldDefinition->getParameters()
+                $fieldDefinition->getParameters(),
+                $context
             );
         } else {
             $valid = true;
@@ -338,7 +349,8 @@ final class DataQualityProvider
                 $validLanguages[$language] = $fieldDefinition->getConditionClass()->validate(
                     $value,
                     $classFieldDefinition,
-                    $fieldDefinition->getParameters()
+                    $fieldDefinition->getParameters(),
+                    $context
                 );
 
                 $valid = $valid && $validLanguages[$language];
@@ -349,5 +361,42 @@ final class DataQualityProvider
             $valid,
             $validLanguages
         ];
+    }
+
+    private function createRuleContext(
+        AbstractObject $dataObject,
+        DataQualityConfig $dataQualityConfig
+    ): RuleContext {
+        $sourceLanguage = Tool::getDefaultLanguage();
+        if ($sourceLanguage === null) {
+            throw new DataQualityException('Cannot evaluate data-quality rules: no default language configured in Pimcore.');
+        }
+
+        // Both arrays are identical until the config allow-list lands; after
+        // that scoredLanguages will hold the allow-list subset while
+        // allLanguages stays as the full set for source-language reads.
+        $validLanguages = Tool::getValidLanguages();
+
+        return new RuleContext(
+            $this->coerceToConcrete($dataObject),
+            $dataQualityConfig,
+            $this->fieldPathResolver,
+            null,
+            $sourceLanguage,
+            $validLanguages,
+            $validLanguages,
+        );
+    }
+
+    private function coerceToConcrete(AbstractObject $dataObject): Concrete
+    {
+        if ($dataObject instanceof Concrete) {
+            return $dataObject;
+        }
+
+        throw new DataQualityException(sprintf(
+            'Cannot evaluate data-quality rules: expected a Concrete DataObject, got %s.',
+            $dataObject::class,
+        ));
     }
 }

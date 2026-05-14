@@ -3,6 +3,7 @@
 namespace Basilicom\DataQualityBundle\DefinitionsCollection\Factory;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionInterface;
+use Basilicom\DataQualityBundle\Definition\LocalizedAwareDefinition;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
 use Basilicom\DataQualityBundle\Registry\RuleRegistry;
 use Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData;
@@ -37,14 +38,41 @@ class FieldDefinitionFactory
             $fieldName = $definitionField;
         }
 
+        $rule = $this->getClass($definition->getCondition(), $definition);
+
+        if ($this->pathRequiresLocalizedAwareRule($fieldName) && !$rule instanceof LocalizedAwareDefinition) {
+            throw new \RuntimeException(sprintf(
+                'Data-quality field "%s" uses translation-aware path syntax (dot or "[]"), '
+                . 'but rule "%s" does not implement %s. Mark the rule with that interface or '
+                . 'rewrite the path to target a single localized field.',
+                (string) $definitionField,
+                (string) $definition->getCondition(),
+                LocalizedAwareDefinition::class,
+            ));
+        }
+
         return new FieldDefinition(
-            $this->getClass($definition->getCondition(), $definition),
+            $rule,
             $fieldName,
             $title,
             empty($definition->getWeight()) ? 0 : (int) $definition->getWeight(),
             $this->parameterStringToArray((string) $definition->getParameters()),
             $language ?? null
         );
+    }
+
+    /**
+     * Translation-aware path syntax: `[]` iteration or dotted traversal.
+     * Bare single-segment paths stay in the legacy lane so existing
+     * `name###de` configurations keep parsing against non-marked rules.
+     */
+    private function pathRequiresLocalizedAwareRule(?string $fieldName): bool
+    {
+        if ($fieldName === null || $fieldName === '') {
+            return false;
+        }
+
+        return str_contains($fieldName, '[]') || str_contains($fieldName, '.');
     }
 
     private function parameterStringToArray(string $parameterString): array

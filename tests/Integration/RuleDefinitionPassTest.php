@@ -7,6 +7,7 @@ namespace Basilicom\DataQualityBundle\Tests\Integration;
 use Basilicom\DataQualityBundle\Definition\DefinitionInterface;
 use Basilicom\DataQualityBundle\Definition\MinimumStringLengthDefinition;
 use Basilicom\DataQualityBundle\Definition\NotEmptyDefinition;
+use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DependencyInjection\Compiler\RuleDefinitionPass;
 use Basilicom\DataQualityBundle\Registry\RuleRegistry;
 use LogicException;
@@ -115,7 +116,7 @@ final class RuleDefinitionPassTest extends TestCase
 
 final class FakeKernelFreeRule implements DefinitionInterface
 {
-    public function validate($content, Data $fieldDefinition, array $parameters): bool
+    public function validate($content, Data $fieldDefinition, array $parameters, RuleContext $context): bool
     {
         return true;
     }
@@ -123,9 +124,5 @@ final class FakeKernelFreeRule implements DefinitionInterface
     public function getNecessaryParameterCount(): int
     {
         return 0;
-    }
-
-    public function setParameters(array $parameters)
-    {
     }
 }

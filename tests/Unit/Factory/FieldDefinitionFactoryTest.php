@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Tests\Unit\Factory;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionInterface;
+use Basilicom\DataQualityBundle\Definition\LocalizedAwareDefinition;
 use Basilicom\DataQualityBundle\Definition\NotEmptyDefinition;
+use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\Registry\RuleRegistry;
 use PHPUnit\Framework\TestCase;
@@ -81,6 +83,89 @@ final class FieldDefinitionFactoryTest extends TestCase
         $factory->get($fieldDef);
     }
 
+    public function test_legacy_path_shapes_continue_to_parse(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Not Empty', new NotEmptyDefinition());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $simple = $factory->get($this->makeFieldDef('name', 'Not Empty'));
+        self::assertSame('name', $simple->getFieldName());
+        self::assertNull($simple->getLanguage());
+
+        $localized = $factory->get($this->makeFieldDef('name###de', 'Not Empty'));
+        self::assertSame('name', $localized->getFieldName());
+        self::assertSame('de', $localized->getLanguage());
+
+        $titled = $factory->get($this->makeFieldDef('name@@@Display Title###de', 'Not Empty'));
+        self::assertSame('name', $titled->getFieldName());
+        self::assertSame('Display Title', $titled->getTitle());
+        self::assertSame('de', $titled->getLanguage());
+
+        $allLangs = $factory->get($this->makeFieldDef('name###All', 'Not Empty'));
+        self::assertSame('name', $allLangs->getFieldName());
+        self::assertSame('All', $allLangs->getLanguage());
+    }
+
+    public function test_dotted_path_requires_localized_aware_rule(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Not Empty', new NotEmptyDefinition());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('pricing.salePrice');
+        $this->expectExceptionMessage(LocalizedAwareDefinition::class);
+
+        $factory->get($this->makeFieldDef('pricing.salePrice###de', 'Not Empty'));
+    }
+
+    public function test_bracket_iterator_path_requires_localized_aware_rule(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Not Empty', new NotEmptyDefinition());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('sections[].title');
+        $this->expectExceptionMessage(LocalizedAwareDefinition::class);
+
+        $factory->get($this->makeFieldDef('sections[].title###All', 'Not Empty'));
+    }
+
+    public function test_dotted_path_accepted_when_rule_implements_marker(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Marker Rule', new MarkedAlwaysTrueRule());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $parsed = $factory->get($this->makeFieldDef('pricing.salePrice###de', 'Marker Rule'));
+        self::assertSame('pricing.salePrice', $parsed->getFieldName());
+        self::assertSame('de', $parsed->getLanguage());
+    }
+
+    public function test_bracket_iterator_path_accepted_when_rule_implements_marker(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Marker Rule', new MarkedAlwaysTrueRule());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $parsed = $factory->get($this->makeFieldDef('sections[].title###All', 'Marker Rule'));
+        self::assertSame('sections[].title', $parsed->getFieldName());
+        self::assertSame('All', $parsed->getLanguage());
+    }
+
+    public function test_bare_container_shape_stays_in_legacy_lane(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Not Empty', new NotEmptyDefinition());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $parsed = $factory->get($this->makeFieldDef('sections###de', 'Not Empty'));
+        self::assertSame('sections', $parsed->getFieldName());
+        self::assertSame('de', $parsed->getLanguage());
+    }
+
     private function makeFieldDef(string $fieldName, ?string $condition): object
     {
         return new class($fieldName, $condition) extends AbstractData {
@@ -110,5 +195,18 @@ final class FieldDefinitionFactoryTest extends TestCase
                 return null;
             }
         };
+    }
+}
+
+final class MarkedAlwaysTrueRule implements DefinitionInterface, LocalizedAwareDefinition
+{
+    public function validate($content, Data $fieldDefinition, array $parameters, RuleContext $context): bool
+    {
+        return true;
+    }
+
+    public function getNecessaryParameterCount(): int
+    {
+        return 0;
     }
 }
