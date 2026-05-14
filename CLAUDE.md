@@ -72,7 +72,14 @@ New definitions should extend `DefinitionAbstract` and implement `DefinitionInte
 `Tools/Installer.php` installs the `DataQualityConfig` data object class and the `DataQualityFieldDefinition` field collection from `Resources/install/` JSON exports. Re-running `pimcore:bundle:install` is needed after changes to these exports.
 
 ### Testing
-There is no automated test suite in this repository.
+Kernel-free PHPUnit suite under `tests/Unit/` covers pure rule/value-object logic. The bundle ships its own `require-dev` so install vendors locally and run the suite on the host:
+
+```bash
+composer install --ignore-platform-reqs
+vendor/bin/phpunit
+```
+
+New tests mirror the namespace under `tests/Unit/<area>/` and instantiate Pimcore value classes directly when they're pure; otherwise stub `Pimcore\Model\DataObject\ClassDefinition\Data` via `createStub()`. Do not pull in `pimcore/testing` or boot the kernel here.
 
 ### Localized Fields Behavior
 When a localized field rule is evaluated, it must be valid in **all** configured Pimcore system languages to count as valid. Language-specific rules can be set using the `#<lang>` suffix (e.g., `NameDE#de`); `#All` checks all languages.
