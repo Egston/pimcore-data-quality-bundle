@@ -2,18 +2,22 @@
 
 namespace Basilicom\DataQualityBundle\Model\Provider;
 
-use Basilicom\DataQualityBundle\DefinitionsCollection\DefinitionsCollection;
+use Basilicom\DataQualityBundle\Registry\RuleRegistry;
 use Pimcore\Model\DataObject\ClassDefinition\DynamicOptionsProvider\SelectOptionsProviderInterface;
 
 class DefinitionsProvider implements SelectOptionsProviderInterface
 {
+    public function __construct(private readonly RuleRegistry $ruleRegistry)
+    {
+    }
+
     public function getOptions($context, $fieldDefinition): array
     {
         $options = [];
-        foreach (DefinitionsCollection::getAllTypes() as $definitionKey => $definitionClass) {
+        foreach ($this->ruleRegistry->all() as $definitionKey => $rule) {
             $options[] = [
-                'value' => $definitionClass,
-                'key'   => $definitionKey
+                'value' => $rule::class,
+                'key'   => $definitionKey,
             ];
         }
 

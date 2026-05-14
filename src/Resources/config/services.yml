@@ -24,6 +24,19 @@ services:
       arguments:
         $bundle: "@=service('kernel').getBundle('DataQualityBundle')"
 
+    Basilicom\DataQualityBundle\Registry\RuleRegistry:
+      public: true
+
+    Basilicom\DataQualityBundle\Definition\NotEmptyDefinition:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Not Empty' }
+
+    Basilicom\DataQualityBundle\Definition\MinimumStringLengthDefinition:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Minimum String Length' }
+
     Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory:
       public: true
 

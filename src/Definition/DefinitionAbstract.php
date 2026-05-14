@@ -8,6 +8,9 @@ abstract class DefinitionAbstract implements DefinitionInterface
 {
     const NECESSARY_PARAMETER_COUNT = 0;
 
+    // Rule instances are container-managed singletons (see services.yml); do NOT add per-row
+    // state here. Runtime parameters arrive via validate()'s 3rd arg — setParameters() has
+    // zero src/ callers and exists only to satisfy DefinitionInterface.
     protected array $parameters = [];
 
     public function getNecessaryParameterCount(): int

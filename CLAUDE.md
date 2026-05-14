@@ -46,7 +46,9 @@ Located in `src/Definition/`. Each implements `DefinitionInterface`:
 - `NotEmptyDefinition` — field must not be empty
 - `MinimumStringLengthDefinition` — string must meet minimum length (params are `;`-separated)
 
-New definitions should extend `DefinitionAbstract` and implement `DefinitionInterface`. Register them in `DefinitionsCollection/DefinitionsCollection.php`.
+New definitions should extend `DefinitionAbstract` and implement `DefinitionInterface`. Register them via the `data_quality.rule` Symfony service tag with a `key` attribute (see `Resources/config/services.yml` for the two built-ins as examples). The `RuleDefinitionPass` collects all tagged services into `RuleRegistry`, which the admin dropdown and `FieldDefinitionFactory` consult at runtime. Missing or duplicate `key` attributes raise `LogicException` at container compile time.
+
+When a rule class is **deleted or renamed** in this bundle, the sync hook ships the file change to the target environment, but `composer dump-autoload` is required there to drop the stale classmap entry — otherwise PHP will still try to autoload the old class path and fail.
 
 ### Configuration Objects (Pimcore Data Objects)
 - **`DataQualityConfig`** — Pimcore data object class (installed via `Resources/install/`) that specifies: target class, target numeric field, rules (via `DataQualityFieldDefinition` field collection entries with field name, condition, weight, and optional group name).
@@ -88,7 +90,7 @@ When a localized field rule is evaluated, it must be valid in **all** configured
 
 | Task | File(s) |
 |------|---------|
-| Add a new validation condition | `src/Definition/`, `src/DefinitionsCollection/DefinitionsCollection.php` |
+| Add a new validation condition | `src/Definition/`, then tag the service `data_quality.rule` with a `key` attribute in `src/Resources/config/services.yml` |
 | Change when quality is recalculated | `src/Model/Listener/ObjectPreSaveListener.php` |
 | Change calculation logic | `src/Provider/DataQualityProvider.php` |
 | Modify admin panel rendering | `src/Model/Renderer/DataQualityConfigRenderer.php`, `src/Resources/views/` |

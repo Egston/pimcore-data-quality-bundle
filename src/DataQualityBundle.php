@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle;
 
+use Basilicom\DataQualityBundle\DependencyInjection\Compiler\RuleDefinitionPass;
 use Basilicom\DataQualityBundle\Tools\Installer;
 use Exception;
 use Pimcore\Extension\Bundle\AbstractPimcoreBundle;
 use Pimcore\Extension\Bundle\Traits\PackageVersionTrait;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 class DataQualityBundle extends AbstractPimcoreBundle
 {
     use PackageVersionTrait {
         getVersion as protected getComposerVersion;
+    }
+
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+        $container->addCompilerPass(new RuleDefinitionPass());
     }
 
     public function getInstaller(): Installer
