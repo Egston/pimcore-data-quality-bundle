@@ -3,6 +3,8 @@ dataQualityConfig:
     dataQualityName: Name
     dataQualityField: Choose Field
     dataQualityClass: Choose Class
+    dataQualityLanguages: Scored Languages
+    dataQualityLanguages.tooltip: Leave empty to score every configured Pimcore language. Selecting a subset narrows the languages that count toward the percentage; the default Pimcore language is still readable for source-language rules even when excluded here.
     dataQualityRules: Rules
     dataQualitySystemAllowed: Allow System User
   text:

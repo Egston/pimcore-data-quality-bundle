@@ -89,3 +89,7 @@ services:
     options_provider.definitions:
       class: Basilicom\DataQualityBundle\Model\Provider\DefinitionsProvider
       public: true
+
+    options_provider.data_quality_languages:
+      class: Basilicom\DataQualityBundle\Model\Provider\DataQualityLanguagesProvider
+      public: true

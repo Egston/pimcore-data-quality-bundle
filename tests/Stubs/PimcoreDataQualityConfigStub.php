@@ -14,4 +14,34 @@ namespace Pimcore\Model\DataObject;
  */
 class DataQualityConfig extends Concrete
 {
+    /** @var string[]|null */
+    private ?array $dataQualityLanguages = null;
+
+    private ?string $dataQualityName = null;
+
+    /**
+     * @return string[]|null
+     */
+    public function getDataQualityLanguages(): ?array
+    {
+        return $this->dataQualityLanguages;
+    }
+
+    /**
+     * @param string[]|null $value
+     */
+    public function setDataQualityLanguages(?array $value): void
+    {
+        $this->dataQualityLanguages = $value;
+    }
+
+    public function getDataQualityName(): ?string
+    {
+        return $this->dataQualityName;
+    }
+
+    public function setDataQualityName(?string $value): void
+    {
+        $this->dataQualityName = $value;
+    }
 }

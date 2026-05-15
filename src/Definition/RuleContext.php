@@ -40,18 +40,12 @@ final class RuleContext
 
     private bool $flagsProbed = false;
 
-    /**
-     * @param string[] $scoredLanguages languages that count toward the score (config allow-list)
-     * @param string[] $allLanguages    superset used for source-language reads even when source is excluded from scoring
-     */
     public function __construct(
         private readonly Concrete $object,
         private readonly DataQualityConfig $config,
         private readonly FieldPathResolverInterface $resolver,
         private readonly ?LanguageFlagsProvider $flagsProvider,
-        private readonly string $sourceLanguage,
-        private readonly array $scoredLanguages,
-        private readonly array $allLanguages,
+        private readonly LanguageScope $languageScope,
     ) {
     }
 
@@ -67,7 +61,7 @@ final class RuleContext
 
     public function getSourceLanguage(): string
     {
-        return $this->sourceLanguage;
+        return $this->languageScope->getSourceLanguage();
     }
 
     /**
@@ -77,7 +71,7 @@ final class RuleContext
      */
     public function getScoredLanguages(): array
     {
-        return $this->scoredLanguages;
+        return $this->languageScope->getScoredLanguages();
     }
 
     /**
@@ -88,7 +82,7 @@ final class RuleContext
      */
     public function getAllLanguages(): array
     {
-        return $this->allLanguages;
+        return $this->languageScope->getAllLanguages();
     }
 
     /**

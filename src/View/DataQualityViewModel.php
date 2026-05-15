@@ -5,12 +5,12 @@ namespace Basilicom\DataQualityBundle\View;
 class DataQualityViewModel
 {
     private string $title;
-    private int $percentage;
+    private ?int $percentage;
 
     /** @var DataQualityGroupViewModel[] */
     private array $groups;
 
-    public function __construct(string $title, int $percentage, array $groups)
+    public function __construct(string $title, ?int $percentage, array $groups)
     {
         $this->title      = $title;
         $this->percentage = $percentage;
@@ -25,10 +25,7 @@ class DataQualityViewModel
         return $this->title;
     }
 
-    /**
-     * @return int
-     */
-    public function getPercentage(): int
+    public function getPercentage(): ?int
     {
         return $this->percentage;
     }

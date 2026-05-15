@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle\Tests\Unit\Definition;
 
+use Basilicom\DataQualityBundle\Definition\LanguageScope;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\Provider\LanguageFlagsProvider;
 use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
@@ -44,6 +45,21 @@ final class RuleContextTest extends TestCase
         self::assertSame($first, $second);
         self::assertSame(3, $resolver->callCount, 'first call iterates languages; second call hits the cache');
         self::assertSame(['en' => 'name:en', 'de' => 'name:de', 'fr' => 'name:fr'], $first);
+    }
+
+    public function test_values_by_lang_iterates_all_languages_not_scored(): void
+    {
+        $resolver = new CountingResolver();
+        $context = $this->buildContext(
+            $resolver,
+            scoredLanguages: ['en', 'de'],
+            allLanguages: ['en', 'de', 'fr'],
+        );
+
+        $result = $context->getValuesByLang('name');
+
+        self::assertArrayHasKey('fr', $result, 'getValuesByLang must include languages outside scored set');
+        self::assertSame(['en' => 'name:en', 'de' => 'name:de', 'fr' => 'name:fr'], $result);
     }
 
     public function test_container_leaves_memoises_per_container_path(): void
@@ -184,7 +200,12 @@ final class RuleContextTest extends TestCase
 
     public function test_source_language_is_returned_verbatim(): void
     {
-        $context = $this->buildContext(new CountingResolver(), sourceLanguage: 'ja');
+        $context = $this->buildContext(
+            new CountingResolver(),
+            sourceLanguage: 'ja',
+            scoredLanguages: ['ja'],
+            allLanguages: ['ja', 'en'],
+        );
 
         self::assertSame('ja', $context->getSourceLanguage());
     }
@@ -213,9 +234,10 @@ final class RuleContextTest extends TestCase
         );
         $reflection->getProperty('resolver')->setValue($instance, $resolver);
         $reflection->getProperty('flagsProvider')->setValue($instance, $flagsProvider);
-        $reflection->getProperty('sourceLanguage')->setValue($instance, $sourceLanguage);
-        $reflection->getProperty('scoredLanguages')->setValue($instance, $scoredLanguages);
-        $reflection->getProperty('allLanguages')->setValue($instance, $allLanguages);
+        $reflection->getProperty('languageScope')->setValue(
+            $instance,
+            new LanguageScope($sourceLanguage, $scoredLanguages, $allLanguages),
+        );
 
         return $instance;
     }

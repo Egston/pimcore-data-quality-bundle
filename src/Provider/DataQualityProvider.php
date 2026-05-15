@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Provider;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionException;
+use Basilicom\DataQualityBundle\Definition\LanguageScope;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
@@ -38,7 +39,7 @@ final class DataQualityProvider
         string $fieldName,
         bool $persist,
         bool $useFastPath = true
-    ): int {
+    ): ?int {
         $countTotal    = 0;
         $countComplete = 0;
 
@@ -51,14 +52,15 @@ final class DataQualityProvider
                 }
             }
         }
-        $value = (int) \round(($countComplete / $countTotal) * 100);
+        $value = $countTotal === 0 ? null : (int) \round(($countComplete / $countTotal) * 100);
+        $cast  = $value === null ? null : (float) $value;
 
         $setter = 'set' . \ucfirst($fieldName);
         if (\method_exists(
             $dataObject,
             $setter
         )) {
-            $dataObject->$setter((float) $value);
+            $dataObject->$setter($cast);
 
             if ($persist) {
                 // Fast path skips InheritanceHelper::saveChildData; a leaf
@@ -66,7 +68,7 @@ final class DataQualityProvider
                 $needsFanOut = $dataObject->getClass()->getAllowInherit()
                     && $dataObject->getChildAmount() > 0;
                 if ($useFastPath && !$needsFanOut) {
-                    $this->writeFieldDirect($dataObject, $fieldName, (float) $value);
+                    $this->writeFieldDirect($dataObject, $fieldName, $cast);
                 } else {
                     ObjectPreSaveListener::withListenerDisabled(function () use ($dataObject) {
                         DataObjectVersion::disable();
@@ -89,7 +91,7 @@ final class DataQualityProvider
      * content edit. Only safe when the object has no children
      * (saveChildData fan-out is skipped); caller must enforce that.
      */
-    private function writeFieldDirect(AbstractObject $dataObject, string $fieldName, float $value): void
+    private function writeFieldDirect(AbstractObject $dataObject, string $fieldName, ?float $value): void
     {
         $classId = $dataObject->getClassId();
         $id      = (int) $dataObject->getId();
@@ -330,8 +332,8 @@ final class DataQualityProvider
         Data $classFieldDefinition,
         RuleContext $context
     ): array {
-        $languages = Tool::getValidLanguages();
-        $validLanguages = [];
+        $languages = $context->getScoredLanguages();
+        $languageValidity = [];
 
         $fieldLanguage = $fieldDefinition->getLanguage();
         if (!empty($fieldLanguage) && Tool::isValidLanguage($fieldLanguage)) {
@@ -345,21 +347,21 @@ final class DataQualityProvider
         } else {
             $valid = true;
             foreach ($languages as $language) {
-                $value                     = $dataObject->$getter($language);
-                $validLanguages[$language] = $fieldDefinition->getConditionClass()->validate(
+                $value                        = $dataObject->$getter($language);
+                $languageValidity[$language]  = $fieldDefinition->getConditionClass()->validate(
                     $value,
                     $classFieldDefinition,
                     $fieldDefinition->getParameters(),
                     $context
                 );
 
-                $valid = $valid && $validLanguages[$language];
+                $valid = $valid && $languageValidity[$language];
             }
         }
 
         return [
             $valid,
-            $validLanguages
+            $languageValidity
         ];
     }
 
@@ -372,20 +374,50 @@ final class DataQualityProvider
             throw new DataQualityException('Cannot evaluate data-quality rules: no default language configured in Pimcore.');
         }
 
-        // Both arrays are identical until the config allow-list lands; after
-        // that scoredLanguages will hold the allow-list subset while
-        // allLanguages stays as the full set for source-language reads.
-        $validLanguages = Tool::getValidLanguages();
+        $allLanguages = Tool::getValidLanguages();
+        $scoredLanguages = $this->resolveScoredLanguages($dataQualityConfig, $allLanguages);
 
         return new RuleContext(
             $this->coerceToConcrete($dataObject),
             $dataQualityConfig,
             $this->fieldPathResolver,
             null,
-            $sourceLanguage,
-            $validLanguages,
-            $validLanguages,
+            new LanguageScope($sourceLanguage, $scoredLanguages, $allLanguages),
         );
+    }
+
+    /**
+     * Resolve the scoring allow-list for a config.
+     *
+     * An empty / null `dataQualityLanguages` is the user-facing intent
+     * "score every configured language" — fall back to the full valid
+     * set. A stale entry (locale removed from Pimcore after the config
+     * was authored) throws so the operator sees the drift instead of
+     * a silently-narrowed score.
+     *
+     * @param string[] $allLanguages
+     *
+     * @return string[]
+     */
+    private function resolveScoredLanguages(
+        DataQualityConfig $dataQualityConfig,
+        array $allLanguages
+    ): array {
+        $configured = $dataQualityConfig->getDataQualityLanguages();
+        if ($configured === null || $configured === []) {
+            return $allLanguages;
+        }
+
+        $stale = array_values(array_diff($configured, $allLanguages));
+        if ($stale !== []) {
+            throw new DataQualityException(sprintf(
+                'DataQualityConfig "%s" references languages no longer valid in Pimcore: [%s]. Remove them from dataQualityLanguages or re-add the locales.',
+                $dataQualityConfig->getDataQualityName() ?? (string) ($dataQualityConfig->getId() ?? 'unsaved-config'),
+                implode(', ', $stale),
+            ));
+        }
+
+        return array_values($configured);
     }
 
     private function coerceToConcrete(AbstractObject $dataObject): Concrete

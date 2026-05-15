@@ -23,7 +23,7 @@
                         {% else %}
                             {{ qualityConfig.title }}:
                         {% endif %}
-                        <span class="data-quality__percent{% if qualityConfig.percentage == 100 %} data-quality__percent--complete{% endif %}">{{ qualityConfig.percentage }}%</span>
+                        <span class="data-quality__percent{% if qualityConfig.percentage is not null and qualityConfig.percentage == 100 %} data-quality__percent--complete{% endif %}">{% if qualityConfig.percentage is null %}—{% else %}{{ qualityConfig.percentage }}%{% endif %}</span>
                     </h1>
 
                     {% for group in qualityConfig.groups %}

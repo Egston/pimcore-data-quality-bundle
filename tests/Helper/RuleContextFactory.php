@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle\Tests\Helper;
 
+use Basilicom\DataQualityBundle\Definition\LanguageScope;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
 use Pimcore\Model\DataObject\Concrete;
@@ -37,9 +38,7 @@ final class RuleContextFactory
             }
         });
         self::setReadonly($reflection, $instance, 'flagsProvider', null);
-        self::setReadonly($reflection, $instance, 'sourceLanguage', 'en');
-        self::setReadonly($reflection, $instance, 'scoredLanguages', ['en', 'de']);
-        self::setReadonly($reflection, $instance, 'allLanguages', ['en', 'de']);
+        self::setReadonly($reflection, $instance, 'languageScope', new LanguageScope('en', ['en', 'de'], ['en', 'de']));
 
         return $instance;
     }
