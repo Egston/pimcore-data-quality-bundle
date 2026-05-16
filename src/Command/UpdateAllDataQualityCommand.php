@@ -58,21 +58,21 @@ class UpdateAllDataQualityCommand extends AbstractCommand
 
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        $batchSize = (int)$input->getArgument('batch-size');
+        $batchSize = (int) $input->getArgument('batch-size');
         if ($batchSize <= 0) {
             $output->writeln('<error>batch-size must be a positive integer.</error>');
 
             return Command::FAILURE;
         }
 
-        $includeUnpublished = (bool)$input->getOption('include-unpublished');
-        $failFast           = (bool)$input->getOption('fail-fast');
-        $fullSave           = (bool)$input->getOption('full-save');
+        $includeUnpublished = (bool) $input->getOption('include-unpublished');
+        $failFast           = (bool) $input->getOption('fail-fast');
+        $fullSave           = (bool) $input->getOption('full-save');
 
         // Validate --only / --skip before any work begins
-        $rawOnly = (array)$input->getOption('only');
+        $rawOnly = (array) $input->getOption('only');
         foreach ($rawOnly as $val) {
-            if (!ctype_digit((string)$val)) {
+            if (!ctype_digit((string) $val)) {
                 $output->writeln(sprintf('<error>--only expects integer DataQualityConfig IDs, got %s</error>', var_export($val, true)));
 
                 return Command::FAILURE;
@@ -80,9 +80,9 @@ class UpdateAllDataQualityCommand extends AbstractCommand
         }
         $only = array_map('intval', $rawOnly);
 
-        $rawSkip = (array)$input->getOption('skip');
+        $rawSkip = (array) $input->getOption('skip');
         foreach ($rawSkip as $val) {
-            if (!ctype_digit((string)$val)) {
+            if (!ctype_digit((string) $val)) {
                 $output->writeln(sprintf('<error>--skip expects integer DataQualityConfig IDs, got %s</error>', var_export($val, true)));
 
                 return Command::FAILURE;
@@ -128,7 +128,7 @@ class UpdateAllDataQualityCommand extends AbstractCommand
             }
 
             $configs = array_values(array_filter($allConfigs, function (DataQualityConfig $c) use ($skip) {
-                return !in_array((int)$c->getId(), $skip, true);
+                return !in_array((int) $c->getId(), $skip, true);
             }));
 
             if (empty($configs)) {
@@ -160,13 +160,13 @@ class UpdateAllDataQualityCommand extends AbstractCommand
         $failed    = [];
 
         foreach ($configs as $config) {
-            $id    = (int)$config->getId();
+            $id    = (int) $config->getId();
             $label = sprintf(
                 '#%d "%s" (class=%s, field=%s)',
                 $id,
-                (string)$config->getKey(),
-                (string)$config->getDataQualityClass(),
-                (string)$config->getDataQualityField()
+                (string) $config->getKey(),
+                (string) $config->getDataQualityClass(),
+                (string) $config->getDataQualityField()
             );
 
             $output->writeln(sprintf("\n<info>▶ Updating %s</info>", $label));

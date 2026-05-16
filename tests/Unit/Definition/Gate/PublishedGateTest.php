@@ -40,12 +40,10 @@ final class PublishedGateTest extends TestCase
 
     private function makeObject(bool $published): Concrete
     {
-        $object = new class () extends Concrete {
+        $object = new class extends Concrete {
             public bool $pub = false;
 
-            public function __construct()
-            {
-            }
+            public function __construct() {}
 
             public function isPublished(): bool
             {

@@ -61,9 +61,7 @@ final class LanguageFlagsProviderRegistryTest extends TestCase
     private function fakeProvider(string $name): LanguageFlagsProvider
     {
         return new class ($name) implements LanguageFlagsProvider {
-            public function __construct(private readonly string $name)
-            {
-            }
+            public function __construct(private readonly string $name) {}
 
             public function getName(): string
             {

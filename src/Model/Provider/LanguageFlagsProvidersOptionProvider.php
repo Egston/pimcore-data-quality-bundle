@@ -14,9 +14,7 @@ use Pimcore\Model\DataObject\ClassDefinition\DynamicOptionsProvider\SelectOption
  */
 final class LanguageFlagsProvidersOptionProvider implements SelectOptionsProviderInterface
 {
-    public function __construct(private readonly LanguageFlagsProviderRegistry $registry)
-    {
-    }
+    public function __construct(private readonly LanguageFlagsProviderRegistry $registry) {}
 
     public function getOptions($context, $fieldDefinition): array
     {

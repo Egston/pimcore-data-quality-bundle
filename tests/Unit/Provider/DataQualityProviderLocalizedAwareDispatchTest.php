@@ -5,17 +5,22 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Tests\Unit\Provider;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionInterface;
+use Basilicom\DataQualityBundle\Definition\Expression;
 use Basilicom\DataQualityBundle\Definition\LocalizedAwareDefinition;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
 use Basilicom\DataQualityBundle\Provider\DataQualityProvider;
+use Basilicom\DataQualityBundle\Registry\LanguageFlagsProviderRegistry;
 use Basilicom\DataQualityBundle\Resolver\FieldPathResolverInterface;
+use Basilicom\DataQualityBundle\Service\ExpressionEvaluator;
+use Basilicom\DataQualityBundle\Service\SafeFunctionProvider;
 use Basilicom\DataQualityBundle\Tests\Helper\RuleContextBuilder;
 use PHPUnit\Framework\TestCase;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\DataQualityConfig;
+use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 /**
  * The two dispatch arms are tested simultaneously because regressing
@@ -193,9 +198,7 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
         };
 
         $object = new class ($brickContainer) extends Concrete {
-            public function __construct(private readonly object $bricks)
-            {
-            }
+            public function __construct(private readonly object $bricks) {}
 
             public function getName(): object
             {
@@ -226,6 +229,29 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
         self::assertSame([], $validFields, 'objectbricks with zero items returns empty validFields');
         self::assertSame(0, $rule->calls, 'marker rule must not be called directly for objectbricks — brick fork takes the path');
         self::assertSame(1, $brickContainer->itemCalls, 'objectbricks fork must call getItems() on the brick container');
+    }
+
+    public function test_expression_rule_routes_through_marker_dispatch_arm(): void
+    {
+        $el = new ExpressionLanguage(null, [new SafeFunctionProvider()]);
+        $rule = new Expression(new ExpressionEvaluator($el), new LanguageFlagsProviderRegistry());
+
+        $context = RuleContextBuilder::withValues([
+            'en' => 'Hello',
+            'de' => 'Hallo',
+        ])->scoredLanguages(['en', 'de'])->build();
+
+        [$valid, $validFields] = $this->invokeDispatchRule(
+            $rule,
+            isLocalizedField: true,
+            apply: true,
+            context: $context,
+            getterValueByLang: ['en' => 'Hello', 'de' => 'Hallo'],
+            parameters: ['expression' => 'value != null'],
+        );
+
+        self::assertTrue($valid);
+        self::assertSame([], $validFields, 'marker dispatch arm must not emit per-language validity map for Expression');
     }
 
     public function test_non_marker_rule_on_localized_field_iterates_per_language(): void
@@ -271,6 +297,7 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
 
     /**
      * @param array<string, mixed> $getterValueByLang
+     * @param array<string, mixed> $parameters
      *
      * @return array{0: bool, 1: array<string, bool>}
      */
@@ -280,6 +307,7 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
         bool $apply,
         RuleContext $context,
         array $getterValueByLang = [],
+        array $parameters = [],
     ): array {
         $provider = new DataQualityProvider(
             (new \ReflectionClass(FieldDefinitionFactory::class))->newInstanceWithoutConstructor(),
@@ -291,7 +319,7 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
             'name',
             'name',
             1,
-            [],
+            $parameters,
             null,
             null,
         );

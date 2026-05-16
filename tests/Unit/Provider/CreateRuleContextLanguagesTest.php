@@ -96,7 +96,7 @@ final class CreateRuleContextLanguagesTest extends TestCase
 
     private function stubResolver(): FieldPathResolverInterface
     {
-        return new class () implements FieldPathResolverInterface {
+        return new class implements FieldPathResolverInterface {
             public function resolve(Concrete $object, string $path, string $language): array
             {
                 return [];

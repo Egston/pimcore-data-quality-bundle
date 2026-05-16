@@ -30,8 +30,7 @@ final class ExpressionGate implements Gate
         private readonly ParsedExpression $expression,
         private readonly ExpressionLanguage $expressionLanguage,
         private readonly string $source,
-    ) {
-    }
+    ) {}
 
     public function evaluate(RuleContext $ctx, Data $fieldDef): bool
     {

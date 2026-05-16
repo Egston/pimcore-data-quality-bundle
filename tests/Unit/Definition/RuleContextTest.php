@@ -86,7 +86,7 @@ final class RuleContextTest extends TestCase
 
     public function test_get_flags_by_lang_invokes_provider_exactly_once(): void
     {
-        $provider = new class () implements LanguageFlagsProvider {
+        $provider = new class implements LanguageFlagsProvider {
             public int $calls = 0;
 
             public function getName(): string
@@ -145,7 +145,7 @@ final class RuleContextTest extends TestCase
 
     public function test_get_flags_by_lang_memoises_empty_map_via_probed_sentinel(): void
     {
-        $provider = new class () implements LanguageFlagsProvider {
+        $provider = new class implements LanguageFlagsProvider {
             public int $calls = 0;
 
             public function getName(): string

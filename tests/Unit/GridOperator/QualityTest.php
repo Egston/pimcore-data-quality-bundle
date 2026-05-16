@@ -71,10 +71,8 @@ final class QualityTest extends TestCase
 
     private function childReturning(?string $value): ConfigElementInterface
     {
-        return new class($value) implements ConfigElementInterface {
-            public function __construct(private readonly ?string $value)
-            {
-            }
+        return new class ($value) implements ConfigElementInterface {
+            public function __construct(private readonly ?string $value) {}
 
             public function getLabel(): string
             {

@@ -195,8 +195,7 @@ final class FieldDefinitionFactoryTest extends TestCase
                 private readonly string $fieldNameValue,
                 private readonly ?string $conditionValue,
                 private readonly ?string $gateValue,
-            ) {
-            }
+            ) {}
 
             public function getField(): ?string
             {

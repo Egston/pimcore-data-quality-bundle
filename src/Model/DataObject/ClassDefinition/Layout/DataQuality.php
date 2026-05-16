@@ -18,7 +18,7 @@ class DataQuality extends Layout implements LayoutDefinitionEnrichmentInterface
 
     public function setDataQualityConfigId($dataQualityConfigId): void
     {
-        $this->dataQualityConfigId = (int)$dataQualityConfigId;
+        $this->dataQualityConfigId = (int) $dataQualityConfigId;
     }
 
     public function enrichLayoutDefinition($object, array $context = []): static

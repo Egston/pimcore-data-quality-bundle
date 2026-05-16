@@ -87,9 +87,7 @@ final class LocalizedFillRatioTest extends TestCase
     {
         $resolveCount = 0;
 
-        $resolver = new class (['en' => 'Hello', 'de' => 'Hallo', 'fr' => 'Bonjour'], $resolveCount)
-            implements FieldPathResolverInterface
-        {
+        $resolver = new class (['en' => 'Hello', 'de' => 'Hallo', 'fr' => 'Bonjour'], $resolveCount) implements FieldPathResolverInterface {
             public function __construct(
                 private readonly array $values,
                 public int &$count,

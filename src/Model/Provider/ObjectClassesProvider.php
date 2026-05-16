@@ -37,7 +37,7 @@ class ObjectClassesProvider implements SelectOptionsProviderInterface
 
             $result[] = [
                 'key'   => $item->getName() . ' (' . $item->getId() . ')',
-                'value' => $item->getId()
+                'value' => $item->getId(),
             ];
         }
 

@@ -24,7 +24,7 @@ class PimcoreAdminSubscriber implements EventSubscriberInterface
                 [
                     '/bundles/dataquality/js/pimcore/object/classes/layout/dataQuality.js',
                     '/bundles/dataquality/js/pimcore/object/layout/dataQuality.js',
-                    '/bundles/dataquality/js/DataQualityBundle.js'
+                    '/bundles/dataquality/js/DataQualityBundle.js',
                 ]
             )
         );
@@ -36,7 +36,7 @@ class PimcoreAdminSubscriber implements EventSubscriberInterface
             array_merge(
                 $event->getPaths(),
                 [
-                    '/bundles/dataquality/css/admin.css'
+                    '/bundles/dataquality/css/admin.css',
                 ]
             )
         );

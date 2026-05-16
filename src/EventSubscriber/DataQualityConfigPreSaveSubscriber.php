@@ -27,9 +27,7 @@ use Pimcore\Model\Element\ValidationException;
  */
 final class DataQualityConfigPreSaveSubscriber
 {
-    public function __construct(private readonly GateFactory $gateFactory)
-    {
-    }
+    public function __construct(private readonly GateFactory $gateFactory) {}
 
     /**
      * @throws ValidationException when any rule's gate string fails to parse

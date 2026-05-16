@@ -46,8 +46,7 @@ final class RuleContext
         private readonly FieldPathResolverInterface $resolver,
         private readonly ?LanguageFlagsProvider $flagsProvider,
         private readonly LanguageScope $languageScope,
-    ) {
-    }
+    ) {}
 
     public function getObject(): Concrete
     {

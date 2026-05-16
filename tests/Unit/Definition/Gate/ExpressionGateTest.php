@@ -21,10 +21,8 @@ final class ExpressionGateTest extends TestCase
         $gate = $factory->fromString('expr:object.getValue() > 5');
         self::assertInstanceOf(ExpressionGate::class, $gate);
 
-        $object = new class () extends Concrete {
-            public function __construct()
-            {
-            }
+        $object = new class extends Concrete {
+            public function __construct() {}
 
             public function getValue(): int
             {

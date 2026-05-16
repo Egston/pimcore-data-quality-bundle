@@ -2,6 +2,4 @@
 
 namespace Basilicom\DataQualityBundle\Exception;
 
-class NoDataObjectsAvailableException extends AbstractDataQualityException
-{
-}
+class NoDataObjectsAvailableException extends AbstractDataQualityException {}

@@ -31,7 +31,7 @@ final class RuleContextFactory
 
         self::setReadonly($reflection, $instance, 'object', self::placeholder(Concrete::class));
         self::setReadonly($reflection, $instance, 'config', self::placeholder(DataQualityConfig::class));
-        self::setReadonly($reflection, $instance, 'resolver', new class () implements FieldPathResolverInterface {
+        self::setReadonly($reflection, $instance, 'resolver', new class implements FieldPathResolverInterface {
             public function resolve(Concrete $object, string $path, string $language): array
             {
                 return [];

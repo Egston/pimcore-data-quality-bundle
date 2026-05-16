@@ -87,9 +87,7 @@ final class RuleContextBuilder
         $scoredLanguages = $this->scoredLanguages ?? $allLanguages;
 
         $resolver = new class ($valuesByLang) implements FieldPathResolverInterface {
-            public function __construct(private readonly array $values)
-            {
-            }
+            public function __construct(private readonly array $values) {}
 
             public function resolve(Concrete $object, string $path, string $language): array
             {

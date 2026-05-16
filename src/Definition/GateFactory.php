@@ -32,8 +32,7 @@ class GateFactory
 
     public function __construct(
         private readonly ExpressionLanguage $expressionLanguage,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws InvalidGateException when the keyword is unknown or the

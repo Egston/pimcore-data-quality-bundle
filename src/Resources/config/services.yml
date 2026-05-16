@@ -55,11 +55,25 @@ services:
       tags:
         - { name: data_quality.rule, key: 'Language Flag Ratio' }
 
+    Basilicom\DataQualityBundle\Definition\Expression:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Expression' }
+
     Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory:
       public: true
 
+    Basilicom\DataQualityBundle\Service\SafeFunctionProvider:
+      public: false
+
+    Basilicom\DataQualityBundle\Service\ExpressionEvaluator:
+      public: false
+
     Symfony\Component\ExpressionLanguage\ExpressionLanguage:
       public: false
+      arguments:
+        $providers:
+          - '@Basilicom\DataQualityBundle\Service\SafeFunctionProvider'
 
     Basilicom\DataQualityBundle\Definition\GateFactory:
       public: true

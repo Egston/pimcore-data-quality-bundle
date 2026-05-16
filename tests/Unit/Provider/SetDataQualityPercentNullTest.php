@@ -86,7 +86,7 @@ final class SetDataQualityPercentNullTest extends TestCase
     ): ?int {
         $provider = new DataQualityProvider(
             (new \ReflectionClass(FieldDefinitionFactory::class))->newInstanceWithoutConstructor(),
-            new class () implements FieldPathResolverInterface {
+            new class implements FieldPathResolverInterface {
                 public function resolve(Concrete $object, string $path, string $language): array
                 {
                     return [];

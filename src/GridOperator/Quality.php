@@ -40,8 +40,8 @@ class Quality extends AbstractOperator
             return $result;
         }
 
-        $childValue = min(100, max(0, (int)$rawValue));
-        $colorIndex = (int)(($childValue / 100) * (count($this->colorPalette) - 1));
+        $childValue = min(100, max(0, (int) $rawValue));
+        $colorIndex = (int) (($childValue / 100) * (count($this->colorPalette) - 1));
 
         $result->value = sprintf(
             '<div style="background-color:%s; text-align:center; font-weight: bold; margin: 0 -10px;">%s%%</div>',

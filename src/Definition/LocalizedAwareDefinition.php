@@ -15,6 +15,4 @@ namespace Basilicom\DataQualityBundle\Definition;
  * rejected at admin-form save time when configured against such a path —
  * the failure surfaces in `FieldDefinitionFactory::get()`.
  */
-interface LocalizedAwareDefinition
-{
-}
+interface LocalizedAwareDefinition {}

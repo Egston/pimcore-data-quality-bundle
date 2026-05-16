@@ -13,9 +13,7 @@ class FieldDefinitionFactory
 {
     public const DEFAULT_GROUP = '__default__';
 
-    public function __construct(private readonly RuleRegistry $ruleRegistry)
-    {
-    }
+    public function __construct(private readonly RuleRegistry $ruleRegistry) {}
 
     public function get(AbstractData $definition): FieldDefinition
     {

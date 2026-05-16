@@ -7,9 +7,7 @@ use Pimcore\Model\DataObject\ClassDefinition\DynamicOptionsProvider\SelectOption
 
 class DefinitionsProvider implements SelectOptionsProviderInterface
 {
-    public function __construct(private readonly RuleRegistry $ruleRegistry)
-    {
-    }
+    public function __construct(private readonly RuleRegistry $ruleRegistry) {}
 
     public function getOptions($context, $fieldDefinition): array
     {

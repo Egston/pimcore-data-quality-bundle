@@ -183,7 +183,7 @@ final class CalculateDataQualityGatedRuleTest extends TestCase
 
     private function emptyResolver(): FieldPathResolverInterface
     {
-        return new class () implements FieldPathResolverInterface {
+        return new class implements FieldPathResolverInterface {
             public function resolve(Concrete $object, string $path, string $language): array
             {
                 return [];

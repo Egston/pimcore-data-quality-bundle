@@ -179,9 +179,7 @@ final class FieldPathResolverTest extends TestCase
 
         // Replace the inner getSku with a no-getter object sharing the same class definition
         $noGetterObject = new class ($object->getClass()) extends Concrete {
-            public function __construct(private readonly ClassDefinition $stubClass)
-            {
-            }
+            public function __construct(private readonly ClassDefinition $stubClass) {}
 
             public function getClass(): ClassDefinition
             {
@@ -206,8 +204,7 @@ final class FieldPathResolverTest extends TestCase
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly string $skuValue,
-            ) {
-            }
+            ) {}
 
             public function getClass(): ClassDefinition
             {
@@ -235,8 +232,7 @@ final class FieldPathResolverTest extends TestCase
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly array $byLang,
-            ) {
-            }
+            ) {}
 
             public function getClass(): ClassDefinition
             {
@@ -276,8 +272,7 @@ final class FieldPathResolverTest extends TestCase
                 public function __construct(
                     private readonly \Pimcore\Model\DataObject\Fieldcollection\Definition $stubDef,
                     private readonly array $byLang,
-                ) {
-                }
+                ) {}
 
                 public function getDefinition(): \Pimcore\Model\DataObject\Fieldcollection\Definition
                 {
@@ -297,8 +292,7 @@ final class FieldPathResolverTest extends TestCase
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly Fieldcollection $fc,
-            ) {
-            }
+            ) {}
 
             public function getClass(): ClassDefinition
             {
@@ -340,8 +334,7 @@ final class FieldPathResolverTest extends TestCase
                     public function __construct(
                         private readonly \Pimcore\Model\DataObject\Fieldcollection\Definition $stubDef,
                         private readonly array $byLang,
-                    ) {
-                    }
+                    ) {}
 
                     public function getDefinition(): \Pimcore\Model\DataObject\Fieldcollection\Definition
                     {
@@ -366,8 +359,7 @@ final class FieldPathResolverTest extends TestCase
                 private readonly ClassDefinition $stubClass,
                 private readonly Fieldcollection $ownFc,
                 private readonly Fieldcollection $parentFc,
-            ) {
-            }
+            ) {}
 
             public function getClass(): ClassDefinition
             {
@@ -402,8 +394,7 @@ final class FieldPathResolverTest extends TestCase
             public function __construct(
                 private readonly \Pimcore\Model\DataObject\Objectbrick\Definition $stubDef,
                 private readonly array $byLang,
-            ) {
-            }
+            ) {}
 
             public function getDefinition(): \Pimcore\Model\DataObject\Objectbrick\Definition
             {
@@ -417,9 +408,7 @@ final class FieldPathResolverTest extends TestCase
         };
 
         $brickContainer = new class ($brickItem) extends Objectbrick {
-            public function __construct(private readonly ObjectbrickItem $item)
-            {
-            }
+            public function __construct(private readonly ObjectbrickItem $item) {}
 
             public function getItems(bool $withInheritedValues = false): array
             {
@@ -431,8 +420,7 @@ final class FieldPathResolverTest extends TestCase
             public function __construct(
                 private readonly ClassDefinition $stubClass,
                 private readonly Objectbrick $brickContainer,
-            ) {
-            }
+            ) {}
 
             public function getClass(): ClassDefinition
             {

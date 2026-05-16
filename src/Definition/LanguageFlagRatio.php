@@ -35,9 +35,7 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
  */
 final class LanguageFlagRatio extends DefinitionAbstract implements LocalizedAwareDefinition
 {
-    public function __construct(private readonly LanguageFlagsProviderRegistry $registry)
-    {
-    }
+    public function __construct(private readonly LanguageFlagsProviderRegistry $registry) {}
 
     /**
      * @throws DefinitionException

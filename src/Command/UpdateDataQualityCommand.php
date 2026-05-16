@@ -67,14 +67,14 @@ class UpdateDataQualityCommand extends AbstractCommand
     public function execute(InputInterface $input, OutputInterface $output)
     {
         try {
-            $batchSize = (int)$input->getArgument('batch-size');
+            $batchSize = (int) $input->getArgument('batch-size');
             if ($batchSize > 0) {
                 $this->batchSize = $batchSize;
             }
 
-            $fullSave        = (bool)$input->getOption('full-save');
-            $batchNumber     = (int)$input->getOption('batch-number');
-            $qualityConfigId = (int)$input->getArgument('quality-config-id');
+            $fullSave        = (bool) $input->getOption('full-save');
+            $batchNumber     = (int) $input->getOption('batch-number');
+            $qualityConfigId = (int) $input->getArgument('quality-config-id');
             if ($batchNumber === 0) {
                 return $this->executeMainProcess($qualityConfigId, $fullSave);
             }

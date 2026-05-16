@@ -97,10 +97,8 @@ final class DataQualityConfigPreSaveSubscriberTest extends TestCase
     public function test_non_data_quality_config_short_circuits(): void
     {
         $subscriber = $this->makeSubscriber();
-        $object = new class () extends AbstractObject {
-            public function __construct()
-            {
-            }
+        $object = new class extends AbstractObject {
+            public function __construct() {}
 
             public function getDataQualityRules(): never
             {
@@ -178,8 +176,7 @@ final class DataQualityConfigPreSaveSubscriberTest extends TestCase
             public function __construct(
                 private readonly string $fieldValue,
                 private readonly ?string $gateValue,
-            ) {
-            }
+            ) {}
 
             public function getField(): ?string
             {

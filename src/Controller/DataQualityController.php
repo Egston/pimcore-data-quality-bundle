@@ -98,7 +98,7 @@ class DataQualityController extends FrontendController
                     'result' => null,
                     'error' => [
                         'message' => $exception->getMessage(),
-                        'code' => $exception->getCode()
+                        'code' => $exception->getCode(),
                     ],
                 ], 200);
             }
