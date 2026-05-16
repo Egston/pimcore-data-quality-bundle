@@ -4,6 +4,7 @@ namespace Basilicom\DataQualityBundle\DefinitionsCollection\Factory;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionInterface;
 use Basilicom\DataQualityBundle\Definition\LocalizedAwareDefinition;
+use Basilicom\DataQualityBundle\Definition\PathSyntax;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
 use Basilicom\DataQualityBundle\Registry\RuleRegistry;
 use Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData;
@@ -75,7 +76,7 @@ class FieldDefinitionFactory
             return false;
         }
 
-        return str_contains($fieldName, '[]') || str_contains($fieldName, '.');
+        return PathSyntax::isContainer($fieldName);
     }
 
     private function parameterStringToArray(string $parameterString): array

@@ -27,6 +27,9 @@ services:
     Basilicom\DataQualityBundle\Registry\RuleRegistry:
       public: true
 
+    Basilicom\DataQualityBundle\Registry\LanguageFlagsProviderRegistry:
+      public: true
+
     Basilicom\DataQualityBundle\Definition\NotEmptyDefinition:
       public: true
       tags:
@@ -46,6 +49,11 @@ services:
       public: true
       tags:
         - { name: data_quality.rule, key: 'Distinct From Source' }
+
+    Basilicom\DataQualityBundle\Definition\LanguageFlagRatio:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Language Flag Ratio' }
 
     Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory:
       public: true
@@ -112,4 +120,8 @@ services:
 
     options_provider.data_quality_languages:
       class: Basilicom\DataQualityBundle\Model\Provider\DataQualityLanguagesProvider
+      public: true
+
+    options_provider.language_flags_providers:
+      class: Basilicom\DataQualityBundle\Model\Provider\LanguageFlagsProvidersOptionProvider
       public: true

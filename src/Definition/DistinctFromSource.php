@@ -43,7 +43,7 @@ final class DistinctFromSource extends DefinitionAbstract implements LocalizedAw
         $fieldName = $fieldDefinition->getName();
         $scored = $context->getScoredLanguages();
 
-        if (self::isContainerPath($fieldName)) {
+        if (PathSyntax::isContainer($fieldName)) {
             $scoredSet = array_flip($scored);
             if (!isset($scoredSet[$sourceLang])) {
                 throw new \LogicException(sprintf(
@@ -105,11 +105,6 @@ final class DistinctFromSource extends DefinitionAbstract implements LocalizedAw
         }
 
         return true;
-    }
-
-    private static function isContainerPath(string $fieldName): bool
-    {
-        return str_contains($fieldName, '[]') || str_contains($fieldName, '.');
     }
 
     private static function normalise(mixed $value): string

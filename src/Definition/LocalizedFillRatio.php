@@ -36,7 +36,7 @@ final class LocalizedFillRatio extends DefinitionAbstract implements LocalizedAw
 
         $fieldName = $fieldDefinition->getName();
 
-        if (self::isContainerPath($fieldName)) {
+        if (PathSyntax::isContainer($fieldName)) {
             $scoredSet = array_flip($scored);
             $total = 0;
             $filled = 0;
@@ -65,10 +65,5 @@ final class LocalizedFillRatio extends DefinitionAbstract implements LocalizedAw
         }
 
         return ($filled / count($scored)) >= $minRatio;
-    }
-
-    private static function isContainerPath(string $fieldName): bool
-    {
-        return str_contains($fieldName, '[]') || str_contains($fieldName, '.');
     }
 }

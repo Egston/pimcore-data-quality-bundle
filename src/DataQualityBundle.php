@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle;
 
+use Basilicom\DataQualityBundle\DependencyInjection\Compiler\LanguageFlagsProviderPass;
 use Basilicom\DataQualityBundle\DependencyInjection\Compiler\RuleDefinitionPass;
 use Basilicom\DataQualityBundle\Tools\Installer;
 use Exception;
@@ -21,6 +22,7 @@ class DataQualityBundle extends AbstractPimcoreBundle
     {
         parent::build($container);
         $container->addCompilerPass(new RuleDefinitionPass());
+        $container->addCompilerPass(new LanguageFlagsProviderPass());
     }
 
     public function getInstaller(): Installer
