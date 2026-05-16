@@ -212,6 +212,8 @@ final class DataQualityProvider
                     $isLocalizedField,
                     $apply,
                     $context,
+                    $dataQualityConfig,
+                    $ruleIndex,
                 );
 
                 $dataQualityFields[] = new DataQualityFieldViewModel(
@@ -308,6 +310,8 @@ final class DataQualityProvider
         bool $isLocalizedField,
         bool $apply,
         RuleContext $context,
+        DataQualityConfig $config,
+        int $ruleIndex,
     ): array {
         if (!$apply) {
             return [true, []];
@@ -318,12 +322,28 @@ final class DataQualityProvider
         }
 
         if ($isLocalizedField && $fieldDefinition->getConditionClass() instanceof LocalizedAwareDefinition) {
-            $valid = $fieldDefinition->getConditionClass()->validate(
-                null,
-                $classFieldDefinition,
-                $fieldDefinition->getParameters(),
-                $context,
-            );
+            try {
+                $valid = $fieldDefinition->getConditionClass()->validate(
+                    null,
+                    $classFieldDefinition,
+                    $fieldDefinition->getParameters(),
+                    $context,
+                );
+            } catch (\Throwable $e) {
+                \Pimcore\Logger::warning(sprintf(
+                    'DataQualityBundle: localized-aware rule "%s" (config #%s "%s" rule[%d]) threw for field "%s" on oo_id=%d: %s (%s)',
+                    $fieldDefinition->getConditionClass()::class,
+                    (string) ($config->getId() ?? 'unsaved'),
+                    (string) ($config->getDataQualityName() ?? ''),
+                    $ruleIndex,
+                    $fieldDefinition->getFieldName(),
+                    (int) $context->getObject()->getId(),
+                    $e->getMessage(),
+                    $e::class,
+                ));
+
+                return [false, []];
+            }
 
             return [$valid, []];
         }

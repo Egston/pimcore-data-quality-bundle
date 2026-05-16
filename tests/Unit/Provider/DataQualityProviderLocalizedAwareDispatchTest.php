@@ -15,6 +15,7 @@ use Basilicom\DataQualityBundle\Tests\Helper\RuleContextBuilder;
 use PHPUnit\Framework\TestCase;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Model\DataObject\DataQualityConfig;
 
 /**
  * The two dispatch arms are tested simultaneously because regressing
@@ -61,6 +62,60 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
         self::assertSame([], $validFields, 'marker dispatch does not emit per-language validity map');
         self::assertSame(1, $rule->calls, 'marker rule must be validated once, not once-per-language');
         self::assertNull($rule->contents[0], 'marker dispatch passes null content — rule reads via context');
+    }
+
+    public function test_throwing_marker_rule_returns_false_and_does_not_propagate(): void
+    {
+        $rule = new class implements DefinitionInterface, LocalizedAwareDefinition {
+            public function validate($content, Data $fieldDefinition, array $parameters, RuleContext $context): bool
+            {
+                throw new \LogicException('source language excluded from scored set');
+            }
+
+            public function getNecessaryParameterCount(): int
+            {
+                return 0;
+            }
+        };
+
+        $context = RuleContextBuilder::withValues(['en' => 'Hello'])->scoredLanguages(['en'])->build();
+
+        [$valid, $validFields] = $this->invokeDispatchRule(
+            $rule,
+            isLocalizedField: true,
+            apply: true,
+            context: $context,
+        );
+
+        self::assertFalse($valid, 'throwing marker rule must degrade to false rather than propagating');
+        self::assertSame([], $validFields);
+    }
+
+    public function test_throwing_marker_rule_with_type_error_returns_false_and_does_not_propagate(): void
+    {
+        $rule = new class implements DefinitionInterface, LocalizedAwareDefinition {
+            public function validate($content, Data $fieldDefinition, array $parameters, RuleContext $context): bool
+            {
+                throw new \TypeError('type mismatch in rule');
+            }
+
+            public function getNecessaryParameterCount(): int
+            {
+                return 0;
+            }
+        };
+
+        $context = RuleContextBuilder::withValues(['en' => 'Hello'])->scoredLanguages(['en'])->build();
+
+        [$valid, $validFields] = $this->invokeDispatchRule(
+            $rule,
+            isLocalizedField: true,
+            apply: true,
+            context: $context,
+        );
+
+        self::assertFalse($valid, 'TypeError from marker rule must degrade to false rather than propagating');
+        self::assertSame([], $validFields);
     }
 
     public function test_gate_excluded_rule_returns_na_tuple(): void
@@ -127,8 +182,12 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
         $classFieldDef->method('getName')->willReturn('name');
 
         $brickContainer = new class {
+            public int $itemCalls = 0;
+
             public function getItems(): array
             {
+                $this->itemCalls++;
+
                 return [];
             }
         };
@@ -144,6 +203,8 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
             }
         };
 
+        $config = (new \ReflectionClass(DataQualityConfig::class))->newInstanceWithoutConstructor();
+
         $reflection = new \ReflectionClass(DataQualityProvider::class);
         $method = $reflection->getMethod('dispatchRule');
         $method->setAccessible(true);
@@ -157,11 +218,14 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
             true,
             true,
             $context,
+            $config,
+            0,
         );
 
         self::assertTrue($valid);
         self::assertSame([], $validFields, 'objectbricks with zero items returns empty validFields');
-        self::assertSame(0, $rule->calls, 'marker rule must not be called directly for objectbricks — validateObjectBricks takes the fork');
+        self::assertSame(0, $rule->calls, 'marker rule must not be called directly for objectbricks — brick fork takes the path');
+        self::assertSame(1, $brickContainer->itemCalls, 'objectbricks fork must call getItems() on the brick container');
     }
 
     public function test_non_marker_rule_on_localized_field_iterates_per_language(): void
@@ -260,6 +324,8 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
         $method = $reflection->getMethod('dispatchRule');
         $method->setAccessible(true);
 
+        $config = (new \ReflectionClass(DataQualityConfig::class))->newInstanceWithoutConstructor();
+
         return $method->invoke(
             $provider,
             $object,
@@ -269,6 +335,8 @@ final class DataQualityProviderLocalizedAwareDispatchTest extends TestCase
             $isLocalizedField,
             $apply,
             $context,
+            $config,
+            0,
         );
     }
 

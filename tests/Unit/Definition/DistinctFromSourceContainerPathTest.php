@@ -21,6 +21,28 @@ use Pimcore\Model\DataObject\DataQualityConfig;
  */
 final class DistinctFromSourceContainerPathTest extends TestCase
 {
+    public function test_source_language_excluded_from_scored_throws(): void
+    {
+        $leaves = [
+            new ResolvedLeaf('sections[0].title', 'de', 'Einleitung'),
+            new ResolvedLeaf('sections[0].title', 'fr', 'Introduction'),
+        ];
+
+        $rule = new DistinctFromSource();
+        $context = $this->makeContextWithContainerLeaves(
+            'sections[].title',
+            $leaves,
+            'en',
+            ['de', 'fr'],
+            ['en', 'de', 'fr'],
+        );
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/source language "en"/');
+
+        $rule->validate(null, $this->makeFieldDef('sections[].title'), [], $context);
+    }
+
     public function test_two_items_all_distinct_passes(): void
     {
         $leaves = [
@@ -62,13 +84,16 @@ final class DistinctFromSourceContainerPathTest extends TestCase
     /**
      * @param ResolvedLeaf[] $leaves
      * @param string[] $scored
+     * @param string[]|null $all All-languages superset; defaults to $scored when omitted.
      */
     private function makeContextWithContainerLeaves(
         string $containerPath,
         array $leaves,
         string $source,
         array $scored,
+        ?array $all = null,
     ): RuleContext {
+        $all ??= $scored;
         $resolver = new class ($containerPath, $leaves) implements FieldPathResolverInterface {
             /** @param ResolvedLeaf[] $leaves */
             public function __construct(
@@ -103,7 +128,7 @@ final class DistinctFromSourceContainerPathTest extends TestCase
         $reflection->getProperty('flagsProvider')->setValue($instance, null);
         $reflection->getProperty('languageScope')->setValue(
             $instance,
-            new LanguageScope($source, $scored, $scored),
+            new LanguageScope($source, $scored, $all),
         );
 
         return $instance;

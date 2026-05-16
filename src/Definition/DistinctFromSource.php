@@ -26,6 +26,11 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
  * leaf for the same container index — leaves are not memoised by
  * sub-index here because the field-path resolver already emits
  * one `ResolvedLeaf` per (item-index, language) tuple.
+ *
+ * For container paths the source language must be in the scored set
+ * (because `getContainerLeaves()` only iterates scored languages).
+ * Misconfiguration throws `\LogicException` rather than silently
+ * reporting "all distinct" with zero comparisons performed.
  */
 final class DistinctFromSource extends DefinitionAbstract implements LocalizedAwareDefinition
 {
@@ -40,6 +45,13 @@ final class DistinctFromSource extends DefinitionAbstract implements LocalizedAw
 
         if (self::isContainerPath($fieldName)) {
             $scoredSet = array_flip($scored);
+            if (!isset($scoredSet[$sourceLang])) {
+                throw new \LogicException(sprintf(
+                    'DistinctFromSource cannot compare container leaves: source language "%s" is not in the scored set [%s]. Add it to the config allow-list or remove the source-language override.',
+                    $sourceLang,
+                    implode(', ', $scored),
+                ));
+            }
             $sourceByLeaf = [];
             $containerLeaves = $context->getContainerLeaves($fieldName);
             foreach ($containerLeaves as $leaf) {
