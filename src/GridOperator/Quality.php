@@ -31,8 +31,16 @@ class Quality extends AbstractOperator
 
         $child = $children[0];
         $childResult = $child->getLabeledValue($element);
+        $rawValue = $childResult->value ?? null;
 
-        $childValue = min(100, max(0, (int)$childResult->value));
+        if ($rawValue === null || $rawValue === '') {
+            $result->value = '<div style="text-align:center; color: #888; margin: 0 -10px;">—</div>';
+            $result->isArrayType = false;
+
+            return $result;
+        }
+
+        $childValue = min(100, max(0, (int)$rawValue));
         $colorIndex = (int)(($childValue / 100) * (count($this->colorPalette) - 1));
 
         $result->value = sprintf(
