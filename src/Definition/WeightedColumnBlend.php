@@ -53,58 +53,52 @@ final class WeightedColumnBlend extends DefinitionAbstract implements LocalizedA
     {
         $this->skipFromScore = false;
 
-        try {
-            $weights = $this->parseColumnsParameter($parameters);
+        $weights = $this->parseColumnsParameter($parameters);
 
-            $object = $context->getObject();
+        $object = $context->getObject();
 
-            $totalWeight = 0.0;
-            $weightedSum = 0.0;
-            $nullCount = 0;
-            foreach ($weights as $column => $weight) {
-                $getter = 'get' . ucfirst($column);
-                if (!method_exists($object, $getter)) {
-                    throw new DefinitionException(sprintf(
-                        'WeightedColumnBlend: column "%s" has no getter "%s" on %s.',
-                        $column,
-                        $getter,
-                        $object::class,
-                    ));
-                }
-
-                $value = $object->$getter();
-                if ($value === null) {
-                    $nullCount++;
-
-                    continue;
-                }
-                if (!is_numeric($value)) {
-                    throw new DefinitionException(sprintf(
-                        'WeightedColumnBlend: column "%s" on oo_id=%d returned non-numeric value of type %s.',
-                        $column,
-                        (int) $object->getId(),
-                        get_debug_type($value),
-                    ));
-                }
-
-                $totalWeight += $weight;
-                $weightedSum += $weight * (float) $value;
+        $totalWeight = 0.0;
+        $weightedSum = 0.0;
+        $nullCount = 0;
+        foreach ($weights as $column => $weight) {
+            $getter = 'get' . ucfirst($column);
+            if (!method_exists($object, $getter)) {
+                throw new DefinitionException(sprintf(
+                    'WeightedColumnBlend: column "%s" has no getter "%s" on %s.',
+                    $column,
+                    $getter,
+                    $object::class,
+                ));
             }
 
-            if ($nullCount === count($weights)) {
-                $this->skipFromScore = true;
+            $value = $object->$getter();
+            if ($value === null) {
+                $nullCount++;
 
-                return false;
+                continue;
+            }
+            if (!is_numeric($value)) {
+                throw new DefinitionException(sprintf(
+                    'WeightedColumnBlend: column "%s" on oo_id=%d returned non-numeric value of type %s.',
+                    $column,
+                    (int) $object->getId(),
+                    get_debug_type($value),
+                ));
             }
 
-            $blended = $weightedSum / $totalWeight;
-
-            return $blended >= self::PASS_THRESHOLD;
-        } catch (\Throwable $e) {
-            $this->skipFromScore = false;
-
-            throw $e;
+            $totalWeight += $weight;
+            $weightedSum += $weight * (float) $value;
         }
+
+        if ($nullCount === count($weights)) {
+            $this->skipFromScore = true;
+
+            return false;
+        }
+
+        $blended = $weightedSum / $totalWeight;
+
+        return $blended >= self::PASS_THRESHOLD;
     }
 
     public function dependsOnColumns(array $parameters, DataQualityConfig $config): array

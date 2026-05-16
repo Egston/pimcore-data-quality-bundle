@@ -14,6 +14,7 @@ use Pimcore\Event\Model\DataObjectEvent;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\DataQualityConfig;
+use Pimcore\Model\DataObject\Folder;
 
 /**
  * Pins that `onPreSave()` passes the config set through `DependencyResolver::sort()`
@@ -43,6 +44,30 @@ final class ObjectPreSaveListenerSortTest extends TestCase
         $listener->onPreSave(new DataObjectEvent($this->fakeObject()));
 
         self::assertSame([20, 10], $seenIds, 'configs must reach calculateDataQuality in the resolver-sorted order');
+    }
+
+    public function test_folder_save_does_not_trigger_calculate_or_log_warning(): void
+    {
+        $resolver = $this->fakeResolver([]);
+        $calculateCount = 0;
+        $service = $this->fakeService(
+            configs: [$this->fakeConfig(id: 1)],
+            onCalculate: function () use (&$calculateCount): void {
+                $calculateCount++;
+            },
+        );
+
+        $folder = new class extends Folder {
+            public function __construct()
+            {
+                // Skip Folder's constructor.
+            }
+        };
+
+        $listener = new ObjectPreSaveListener($service, $resolver);
+        $listener->onPreSave(new DataObjectEvent($folder));
+
+        self::assertSame(0, $calculateCount, 'folder save must not reach calculateDataQuality');
     }
 
     public function test_sort_exception_is_swallowed_and_does_not_propagate(): void

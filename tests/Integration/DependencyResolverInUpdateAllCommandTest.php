@@ -25,7 +25,7 @@ use Pimcore\Model\DataObject\Fieldcollection\Data\DataQualityFieldDefinition;
  */
 final class DependencyResolverInUpdateAllCommandTest extends TestCase
 {
-    public function test_blend_consumer_runs_after_all_producer_configs(): void
+    public function test_resolver_sort_orders_consumer_last_for_command_dispatch(): void
     {
         $producerA = $this->producerConfig(10, 'ResourceLibraryItem', 'fillScore');
         $producerB = $this->producerConfig(20, 'ResourceLibraryItem', 'authenticityScore');
@@ -101,7 +101,6 @@ final class DependencyResolverInUpdateAllCommandTest extends TestCase
 
         foreach ($sorted as $config) {
             $cmd = sprintf('dataquality:update %d 10', (int) $config->getId());
-            // Directly exercise spawnChild in the order the sort produced.
             $ref = new \ReflectionClass($command);
             $ref->getMethod('spawnChild')->invoke($command, $cmd);
         }

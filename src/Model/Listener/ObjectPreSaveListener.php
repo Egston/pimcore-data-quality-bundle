@@ -67,7 +67,7 @@ class ObjectPreSaveListener
                 }
             });
         } catch (Exception $exception) {
-            if (isset($dataObject)) {
+            if ($dataObject instanceof Concrete) {
                 \Pimcore\Logger::warning(sprintf(
                     'DataQualityBundle: pre-save DQ recompute skipped for oo_id=%d: %s',
                     (int) $dataObject->getId(),
