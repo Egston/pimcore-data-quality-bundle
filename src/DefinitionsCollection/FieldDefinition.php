@@ -12,8 +12,9 @@ class FieldDefinition
     protected int $weight;
     protected array $parameters;
     protected ?string $language;
+    protected ?string $gate;
 
-    public function __construct(DefinitionInterface $conditionClass, string $fieldName, string $title, int $weight, array $parameters, ?string $language = null)
+    public function __construct(DefinitionInterface $conditionClass, string $fieldName, string $title, int $weight, array $parameters, ?string $language = null, ?string $gate = null)
     {
         $this->conditionClass = $conditionClass;
         $this->fieldName      = $fieldName;
@@ -21,6 +22,7 @@ class FieldDefinition
         $this->weight         = $weight;
         $this->parameters     = $parameters;
         $this->language       = $language;
+        $this->gate           = $gate;
     }
 
     /**
@@ -69,5 +71,15 @@ class FieldDefinition
     public function getLanguage(): ?string
     {
         return $this->language;
+    }
+
+    /**
+     * Raw gate string as configured on the fieldcollection row, or
+     * `null` when the row carries no gate. The caller resolves it
+     * through `GateFactory::fromString()`.
+     */
+    public function getGate(): ?string
+    {
+        return $this->gate;
     }
 }

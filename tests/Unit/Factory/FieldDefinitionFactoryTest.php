@@ -166,12 +166,35 @@ final class FieldDefinitionFactoryTest extends TestCase
         self::assertSame('de', $parsed->getLanguage());
     }
 
-    private function makeFieldDef(string $fieldName, ?string $condition): object
+    public function test_gate_string_is_threaded_into_field_definition(): void
     {
-        return new class ($fieldName, $condition) extends AbstractData {
+        $registry = new RuleRegistry();
+        $registry->register('Not Empty', new NotEmptyDefinition());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $parsed = $factory->get($this->makeFieldDef('name', 'Not Empty', 'source_filled'));
+
+        self::assertSame('source_filled', $parsed->getGate());
+    }
+
+    public function test_missing_gate_defaults_to_null(): void
+    {
+        $registry = new RuleRegistry();
+        $registry->register('Not Empty', new NotEmptyDefinition());
+        $factory = new FieldDefinitionFactory($registry);
+
+        $parsed = $factory->get($this->makeFieldDef('name', 'Not Empty'));
+
+        self::assertNull($parsed->getGate());
+    }
+
+    private function makeFieldDef(string $fieldName, ?string $condition, ?string $gate = null): object
+    {
+        return new class ($fieldName, $condition, $gate) extends AbstractData {
             public function __construct(
                 private readonly string $fieldNameValue,
                 private readonly ?string $conditionValue,
+                private readonly ?string $gateValue,
             ) {
             }
 
@@ -193,6 +216,11 @@ final class FieldDefinitionFactoryTest extends TestCase
             public function getParameters(): ?string
             {
                 return null;
+            }
+
+            public function getGate(): ?string
+            {
+                return $this->gateValue;
             }
         };
     }

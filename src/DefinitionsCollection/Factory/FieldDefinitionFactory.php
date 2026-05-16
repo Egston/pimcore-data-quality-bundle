@@ -51,13 +51,16 @@ class FieldDefinitionFactory
             ));
         }
 
+        $gate = $definition->getGate();
+
         return new FieldDefinition(
             $rule,
             $fieldName,
             $title,
             empty($definition->getWeight()) ? 0 : (int) $definition->getWeight(),
             $this->parameterStringToArray((string) $definition->getParameters()),
-            $language ?? null
+            $language ?? null,
+            $gate,
         );
     }
 

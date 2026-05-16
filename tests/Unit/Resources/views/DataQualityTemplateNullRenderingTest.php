@@ -58,4 +58,27 @@ final class DataQualityTemplateNullRenderingTest extends TestCase
             '`?? 0` would silently collapse null to "0%"; null must be rendered as em-dash'
         );
     }
+
+    public function test_renders_na_class_on_not_applied_branch(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/not\s+field\.applied/u',
+            $this->template,
+            'Template must branch on `not field.applied` so N/A rows render distinctly'
+        );
+        self::assertStringContainsString(
+            'data-quality__column--na',
+            $this->template,
+            'N/A branch must use the dedicated --na CSS class'
+        );
+    }
+
+    public function test_na_label_translation_key_is_emitted(): void
+    {
+        self::assertStringContainsString(
+            "'dataQuality.label.notApplicable'",
+            $this->template,
+            'N/A branch must emit the translation key for the user-visible "(N/A)" tag'
+        );
+    }
 }

@@ -55,4 +55,34 @@ final class LanguageScopeTest extends TestCase
         self::assertSame([], $scope->getScoredLanguages());
         self::assertSame(['en', 'de'], $scope->getAllLanguages());
     }
+
+    public function test_is_scored_returns_true_for_scored_language(): void
+    {
+        $scope = new LanguageScope('en', ['en', 'de'], ['en', 'de', 'fr']);
+
+        self::assertTrue($scope->isScored('en'));
+        self::assertTrue($scope->isScored('de'));
+    }
+
+    public function test_is_scored_returns_false_for_source_only_language(): void
+    {
+        $scope = new LanguageScope('en', ['de'], ['en', 'de']);
+
+        self::assertFalse($scope->isScored('en'));
+        self::assertFalse($scope->isScored('ja'));
+    }
+
+    public function test_source_only_languages_returns_all_minus_scored(): void
+    {
+        $scope = new LanguageScope('en', ['de', 'fr'], ['en', 'de', 'fr']);
+
+        self::assertSame(['en'], $scope->getSourceOnlyLanguages());
+    }
+
+    public function test_source_only_languages_is_empty_when_all_languages_are_scored(): void
+    {
+        $scope = new LanguageScope('en', ['en', 'de'], ['en', 'de']);
+
+        self::assertSame([], $scope->getSourceOnlyLanguages());
+    }
 }

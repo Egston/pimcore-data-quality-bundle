@@ -38,8 +38,8 @@
                             <table class="data-quality__table">
                                 {% for field in group.fields %}
                                     <tr class="data-quality__row">
-                                        <td class="data-quality__column{{ not field.valid ? ' data-quality__column--invalid' : '' }}">
-                                            {{ field.name }} {% if field.language %}#{{ field.language }}{% endif %} ({{ field.weight }})
+                                        <td class="data-quality__column{% if not field.applied %} data-quality__column--na{% elseif not field.valid %} data-quality__column--invalid{% endif %}">
+                                            {{ field.name }} {% if field.language %}#{{ field.language }}{% endif %} ({{ field.weight }}){% if not field.applied %} {{ 'dataQuality.label.notApplicable' | trans }}{% endif %}
                                             <div>
                                                 {% if field.validFields is not empty %}
                                                     {% for subField, valid in field.validFields %}

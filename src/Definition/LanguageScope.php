@@ -75,4 +75,22 @@ final class LanguageScope
     {
         return $this->all;
     }
+
+    public function isScored(string $language): bool
+    {
+        return in_array($language, $this->scored, true);
+    }
+
+    /**
+     * Languages valid in Pimcore but excluded from this config's scoring
+     * allow-list. Source-language reads still go through `getAllLanguages()`
+     * so a source-only locale stays reachable; this accessor names the
+     * complement set for callers that need to discriminate.
+     *
+     * @return string[]
+     */
+    public function getSourceOnlyLanguages(): array
+    {
+        return array_values(array_diff($this->all, $this->scored));
+    }
 }

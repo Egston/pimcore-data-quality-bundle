@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Provider;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionException;
+use Basilicom\DataQualityBundle\Definition\GateFactory;
 use Basilicom\DataQualityBundle\Definition\LanguageScope;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
@@ -30,6 +31,7 @@ final class DataQualityProvider
     public function __construct(
         private readonly FieldDefinitionFactory $fieldDefinitionFactory,
         private readonly FieldPathResolverInterface $fieldPathResolver,
+        private readonly ?GateFactory $gateFactory = null,
     ) {
     }
 
@@ -46,6 +48,9 @@ final class DataQualityProvider
         /** @var DataQualityGroupViewModel $group */
         foreach ($groups as $group) {
             foreach ($group->getFields() as $field) {
+                if (!$field->isApplied()) {
+                    continue;
+                }
                 $countTotal = $countTotal + (1 * $field->getWeight());
                 if ($field->isValid()) {
                     $countComplete = $countComplete + (1 * $field->getWeight());
@@ -178,7 +183,7 @@ final class DataQualityProvider
             $dataQualityFields = [];
 
             /** @var FieldDefinition $fieldDefinition */
-            foreach ($dataQualityRuleGroup as $fieldDefinition) {
+            foreach ($dataQualityRuleGroup as $ruleIndex => $fieldDefinition) {
                 $getter = 'get' . $fieldDefinition->getFieldName();
                 if (!method_exists($dataObject, $getter)) {
                     continue;
@@ -190,8 +195,19 @@ final class DataQualityProvider
                     $fieldDefinition->getFieldName(),
                 );
 
+                $apply = $this->evaluateGate(
+                    $fieldDefinition,
+                    $classFieldDefinition,
+                    $context,
+                    $dataQualityConfig,
+                    $dataObject,
+                    $ruleIndex,
+                );
+
                 $validFields = [];
-                if ($this->isObjectBricks($classFieldDefinition)) {
+                if (!$apply) {
+                    $valid = true;
+                } elseif ($this->isObjectBricks($classFieldDefinition)) {
                     [$valid, $validFields] = $this->validateObjectBricks(
                         $dataObject,
                         $getter,
@@ -221,7 +237,8 @@ final class DataQualityProvider
                     $fieldDefinition->getWeight(),
                     $valid,
                     $fieldDefinition->getLanguage(),
-                    $validFields
+                    $validFields,
+                    $apply,
                 );
             }
 
@@ -244,6 +261,51 @@ final class DataQualityProvider
             $percent,
             $dataQualityGroups
         );
+    }
+
+    /**
+     * Resolve the rule's gate and ask it whether the rule applies.
+     * Catches `\Throwable` (not just `\Exception`) so OOM or TypeError
+     * from a broken `expr:` body still produces a logged N/A row rather
+     * than zeroing the whole config. Save-time validation is the loud
+     * arm; this path is intentionally fail-open even for engine errors.
+     */
+    private function evaluateGate(
+        FieldDefinition $fieldDefinition,
+        Data $classFieldDefinition,
+        RuleContext $context,
+        DataQualityConfig $dataQualityConfig,
+        AbstractObject $dataObject,
+        int $ruleIndex,
+    ): bool {
+        if ($this->gateFactory === null) {
+            return true;
+        }
+
+        $gateSource = $fieldDefinition->getGate();
+        if ($gateSource === null || $gateSource === '') {
+            return true;
+        }
+
+        try {
+            $gate = $this->gateFactory->fromString($gateSource);
+
+            return $gate->evaluate($context, $classFieldDefinition);
+        } catch (\Throwable $e) {
+            \Pimcore\Logger::warning(sprintf(
+                'DataQualityBundle: gate evaluation failed for configId=%s config="%s" oo_id=%d ruleIndex=%d rule "%s" gate "%s": %s (%s)',
+                (string) ($dataQualityConfig->getId() ?? 'unsaved'),
+                (string) ($dataQualityConfig->getDataQualityName() ?? ''),
+                (int) $dataObject->getId(),
+                $ruleIndex,
+                $fieldDefinition->getFieldName(),
+                (string) $gateSource,
+                $e->getMessage(),
+                $e::class,
+            ));
+
+            return false;
+        }
     }
 
     private function getDataQualityRules(DataQualityConfig $dataQualityConfig): array

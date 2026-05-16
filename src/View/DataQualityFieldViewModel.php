@@ -9,53 +9,57 @@ class DataQualityFieldViewModel
     private bool $valid;
     private ?string $language;
     private ?array $validFields;
+    private bool $applied;
 
-    public function __construct(string $name, int $weight, bool $valid, ?string $language = null, ?array $validFields = null)
+    public function __construct(string $name, int $weight, bool $valid, ?string $language = null, ?array $validFields = null, bool $applied = true)
     {
+        if (!$applied && !$valid) {
+            throw new \LogicException('N/A rows must carry valid=true');
+        }
+
         $this->name        = $name;
         $this->weight      = $weight;
         $this->valid       = $valid;
         $this->language    = $language;
         $this->validFields = $validFields;
+        $this->applied     = $applied;
     }
 
-    /**
-     * @return string
-     */
     public function getName(): string
     {
         return $this->name;
     }
 
-    /**
-     * @return int
-     */
     public function getWeight(): int
     {
         return $this->weight;
     }
 
-    /**
-     * @return bool
-     */
     public function isValid(): bool
     {
         return $this->valid;
     }
 
-    /**
-     * @return string|null
-     */
     public function getLanguage(): ?string
     {
         return $this->language;
     }
 
-    /**
-     * @return array|null
-     */
     public function getValidFields(): ?array
     {
         return $this->validFields;
+    }
+
+    /**
+     * Whether the rule was applied for this object. A gate that returns
+     * `false` (or throws and is treated as N/A) yields `applied=false`;
+     * the rule contributes zero to both the numerator and denominator
+     * of the final percentage. Default `true` preserves behaviour for
+     * callers that construct view models without an explicit gate
+     * evaluation step.
+     */
+    public function isApplied(): bool
+    {
+        return $this->applied;
     }
 }
