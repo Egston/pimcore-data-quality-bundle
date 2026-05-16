@@ -58,6 +58,24 @@ final class LanguageFlagsProviderPassTest extends TestCase
         self::assertTrue($registry->has('app.flags.unattributed'));
     }
 
+    public function test_tag_with_key_attribute_is_accepted(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setDefinition(LanguageFlagsProviderRegistry::class, new Definition(LanguageFlagsProviderRegistry::class))
+            ->setPublic(true);
+        $container->setDefinition('app.flags.keyed', new Definition(FakeFlagsProvider::class))
+            ->addTag(LanguageFlagsProviderPass::TAG, ['key' => 'Brick verified'])
+            ->setPublic(true);
+
+        $container->addCompilerPass(new LanguageFlagsProviderPass());
+        $container->compile();
+
+        /** @var LanguageFlagsProviderRegistry $registry */
+        $registry = $container->get(LanguageFlagsProviderRegistry::class);
+
+        self::assertTrue($registry->has('app.flags.keyed'), 'key attribute must be ignored, not cause an error');
+    }
+
     public function test_no_registry_definition_is_a_noop(): void
     {
         $container = new ContainerBuilder();
