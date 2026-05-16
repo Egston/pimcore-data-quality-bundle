@@ -33,7 +33,7 @@ use Pimcore\Model\DataObject\Fieldcollection\Data\DataQualityFieldDefinition;
  * input order (no-op). This is the common case today; only the headline
  * `WeightedColumnBlend` rule activates the sort.
  */
-final class DependencyResolver
+class DependencyResolver
 {
     public function __construct(
         private readonly FieldDefinitionFactory $fieldDefinitionFactory,

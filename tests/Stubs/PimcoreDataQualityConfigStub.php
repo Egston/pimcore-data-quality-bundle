@@ -80,4 +80,16 @@ class DataQualityConfig extends Concrete
     {
         $this->dataQualityRules = $value;
     }
+
+    private ?bool $dataQualitySystemAllowed = null;
+
+    public function getDataQualitySystemAllowed(): ?bool
+    {
+        return $this->dataQualitySystemAllowed;
+    }
+
+    public function setDataQualitySystemAllowed(?bool $value): void
+    {
+        $this->dataQualitySystemAllowed = $value;
+    }
 }

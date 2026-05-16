@@ -254,7 +254,7 @@ class UpdateAllDataQualityCommand extends AbstractCommand
      *
      * @return DataQualityConfig[]
      */
-    private function loadPublishedListing(bool $includeUnpublished): array
+    protected function loadPublishedListing(bool $includeUnpublished): array
     {
         $listing = new DataQualityConfig\Listing();
         if ($includeUnpublished) {

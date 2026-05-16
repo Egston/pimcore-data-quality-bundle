@@ -227,7 +227,7 @@ class UpdateDataQualityCommand extends AbstractCommand
         return $messages;
     }
 
-    private function findProducer(string $classId, string $column): ?DataQualityConfig
+    protected function findProducer(string $classId, string $column): ?DataQualityConfig
     {
         $listing = new DataQualityConfig\Listing();
         $listing->setUnpublished(true);

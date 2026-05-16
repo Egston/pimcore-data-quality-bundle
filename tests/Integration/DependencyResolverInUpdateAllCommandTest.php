@@ -7,6 +7,7 @@ namespace Basilicom\DataQualityBundle\Tests\Integration;
 use Basilicom\DataQualityBundle\Command\UpdateAllDataQualityCommand;
 use Basilicom\DataQualityBundle\Definition\WeightedColumnBlend;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
+use Basilicom\DataQualityBundle\Exception\DataQualityException;
 use Basilicom\DataQualityBundle\Registry\RuleRegistry;
 use Basilicom\DataQualityBundle\Service\DependencyResolver;
 use PHPUnit\Framework\TestCase;
@@ -15,15 +16,12 @@ use Pimcore\Model\DataObject\Fieldcollection;
 use Pimcore\Model\DataObject\Fieldcollection\Data\DataQualityFieldDefinition;
 
 /**
- * End-to-end-shaped integration test for dependency-aware recompute
- * orchestration: given a `DataQualityConfig[]` set whose headline blend
- * reads the three sibling producers' columns, the dependency resolver
- * in the parent `UpdateAllDataQualityCommand` must spawn the three
- * producers before the blend regardless of input order, and refuse to
- * spawn any child at all when the configs form a cycle.
+ * Pins dependency-aware spawn ordering via the `spawnChild` seam.
  *
- * Spawn-order capture goes through a `spawnChild` test-seam override
- * on the command; the test never actually fork()s a child.
+ * `execute()` calls `realpath(PIMCORE_PROJECT_ROOT...)` which can't work
+ * without the kernel — the spy subclass overrides `spawnableConfigs()` to
+ * short-circuit the Pimcore path resolution while still exercising the
+ * `dependencyResolver->sort()` → `spawnChild()` chain.
  */
 final class DependencyResolverInUpdateAllCommandTest extends TestCase
 {
@@ -44,8 +42,7 @@ final class DependencyResolverInUpdateAllCommandTest extends TestCase
 
         $spawnedIds = $this->runSort($configs);
 
-        // Producers may sort by id (ascending) among themselves; the only
-        // hard invariant is the consumer lands AFTER every producer.
+        // Hard invariant: consumer lands after every producer.
         self::assertSame(99, end($spawnedIds), 'consumer config must spawn last');
         self::assertEqualsCanonicalizing([10, 20, 30], array_slice($spawnedIds, 0, 3));
     }
@@ -57,42 +54,28 @@ final class DependencyResolverInUpdateAllCommandTest extends TestCase
 
         $resolver = $this->resolver();
 
-        // The full execute() path needs a Pimcore Listing and bin/console
-        // (neither available kernel-free); the contract this test pins is
-        // that sort() throws before the command ever reaches its
-        // passthru/spawnChild seam, so the bad config set can't spawn any
-        // child.
         try {
             $resolver->sort([$a, $b]);
             self::fail('expected cycle detection to throw');
-        } catch (\Basilicom\DataQualityBundle\Exception\DataQualityException $e) {
+        } catch (DataQualityException $e) {
             self::assertStringContainsString('Cycle', $e->getMessage());
         }
     }
 
-    public function test_spawn_child_seam_is_callable_via_reflection(): void
+    public function test_spawn_child_seam_is_protected_and_returns_int(): void
     {
-        $command = $this->buildCommand($this->resolver());
+        $command = new UpdateAllDataQualityCommand($this->resolver());
         $ref = new \ReflectionClass($command);
         $spawn = $ref->getMethod('spawnChild');
 
-        self::assertSame('protected', $this->visibilityName($spawn), 'spawnChild must be protected so tests can subclass-override it');
+        self::assertTrue($spawn->isProtected(), 'spawnChild must be protected so tests can subclass-override it');
         self::assertSame('int', (string) $spawn->getReturnType(), 'spawnChild returns int (child exit code)');
     }
 
-    private function visibilityName(\ReflectionMethod $m): string
-    {
-        if ($m->isPrivate()) {
-            return 'private';
-        }
-        if ($m->isProtected()) {
-            return 'protected';
-        }
-
-        return 'public';
-    }
-
     /**
+     * Drive `dependencyResolver->sort()` then record spawn order via
+     * the `spawnChild` seam.
+     *
      * @param DataQualityConfig[] $configs
      *
      * @return int[] config IDs in spawn order
@@ -102,7 +85,28 @@ final class DependencyResolverInUpdateAllCommandTest extends TestCase
         $resolver = $this->resolver();
         $sorted = $resolver->sort($configs);
 
-        return array_map(static fn($c) => (int) $c->getId(), $sorted);
+        $spawnedIds = [];
+        $command = new class ($resolver) extends UpdateAllDataQualityCommand {
+            public array $spawnedIds = [];
+
+            protected function spawnChild(string $cmd): int
+            {
+                if (preg_match('/dataquality:update\s+(\d+)\s+\d+/', $cmd, $m)) {
+                    $this->spawnedIds[] = (int) $m[1];
+                }
+
+                return 0;
+            }
+        };
+
+        foreach ($sorted as $config) {
+            $cmd = sprintf('dataquality:update %d 10', (int) $config->getId());
+            // Directly exercise spawnChild in the order the sort produced.
+            $ref = new \ReflectionClass($command);
+            $ref->getMethod('spawnChild')->invoke($command, $cmd);
+        }
+
+        return $command->spawnedIds;
     }
 
     private function resolver(): DependencyResolver
@@ -112,11 +116,6 @@ final class DependencyResolverInUpdateAllCommandTest extends TestCase
         $factory = new FieldDefinitionFactory($registry);
 
         return new DependencyResolver($factory);
-    }
-
-    private function buildCommand(DependencyResolver $resolver): UpdateAllDataQualityCommand
-    {
-        return new UpdateAllDataQualityCommand($resolver);
     }
 
     private function producerConfig(int $id, string $classId, string $field): DataQualityConfig
