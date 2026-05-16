@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Basilicom\DataQualityBundle\Provider;
 
 use Basilicom\DataQualityBundle\Definition\DefinitionException;
+use Basilicom\DataQualityBundle\Definition\DependentDefinition;
 use Basilicom\DataQualityBundle\Definition\GateFactory;
 use Basilicom\DataQualityBundle\Definition\LanguageScope;
 use Basilicom\DataQualityBundle\Definition\LocalizedAwareDefinition;
@@ -216,13 +217,20 @@ final class DataQualityProvider
                     $ruleIndex,
                 );
 
+                [$valid, $validFields, $applied] = $this->applySkipFromScoreOverride(
+                    $fieldDefinition,
+                    $apply,
+                    $valid,
+                    $validFields,
+                );
+
                 $dataQualityFields[] = new DataQualityFieldViewModel(
                     $fieldDefinition->getTitle(),
                     $fieldDefinition->getWeight(),
                     $valid,
                     $fieldDefinition->getLanguage(),
                     $validFields,
-                    $apply,
+                    $applied,
                 );
             }
 
@@ -245,6 +253,29 @@ final class DataQualityProvider
             $percent,
             $dataQualityGroups
         );
+    }
+
+    /**
+     * When a `DependentDefinition` rule signals N/A via `skipFromScore()`,
+     * demote `applied` to `false` so `setDataQualityPercent` writes SQL NULL
+     * rather than counting the row as a numerator-zero fail.
+     *
+     * @param array<string, bool> $validFields
+     *
+     * @return array{0: bool, 1: array<string, bool>, 2: bool}
+     */
+    private function applySkipFromScoreOverride(
+        FieldDefinition $fieldDefinition,
+        bool $apply,
+        bool $valid,
+        array $validFields,
+    ): array {
+        $rule = $fieldDefinition->getConditionClass();
+        if ($apply && $rule instanceof DependentDefinition && $rule->skipFromScore()) {
+            return [true, [], false];
+        }
+
+        return [$valid, $validFields, $apply];
     }
 
     /**

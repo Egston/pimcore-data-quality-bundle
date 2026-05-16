@@ -21,6 +21,30 @@ class DataQualityConfig extends Concrete
 
     private ?Fieldcollection $dataQualityRules = null;
 
+    private ?string $dataQualityClass = null;
+
+    private ?string $dataQualityField = null;
+
+    public function getDataQualityClass(): ?string
+    {
+        return $this->dataQualityClass;
+    }
+
+    public function setDataQualityClass(?string $value): void
+    {
+        $this->dataQualityClass = $value;
+    }
+
+    public function getDataQualityField(): ?string
+    {
+        return $this->dataQualityField;
+    }
+
+    public function setDataQualityField(?string $value): void
+    {
+        $this->dataQualityField = $value;
+    }
+
     /**
      * @return string[]|null
      */

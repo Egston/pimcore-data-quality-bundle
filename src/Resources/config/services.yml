@@ -60,6 +60,14 @@ services:
       tags:
         - { name: data_quality.rule, key: 'Expression' }
 
+    Basilicom\DataQualityBundle\Definition\WeightedColumnBlend:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Weighted Column Blend' }
+
+    Basilicom\DataQualityBundle\Service\DependencyResolver:
+      public: true
+
     Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory:
       public: true
 

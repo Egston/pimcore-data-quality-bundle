@@ -2,6 +2,8 @@
 
 namespace Basilicom\DataQualityBundle\Command;
 
+use Basilicom\DataQualityBundle\Exception\DataQualityException;
+use Basilicom\DataQualityBundle\Service\DependencyResolver;
 use Pimcore\Console\AbstractCommand;
 use Pimcore\Model\DataObject\DataQualityConfig;
 use Symfony\Component\Console\Command\Command;
@@ -14,6 +16,11 @@ class UpdateAllDataQualityCommand extends AbstractCommand
 {
     protected static $defaultName        = 'dataquality:update-all';
     protected static $defaultDescription = 'Re-compute and update data quality for every DataQualityConfig.';
+
+    public function __construct(private readonly DependencyResolver $dependencyResolver)
+    {
+        parent::__construct();
+    }
 
     protected function configure()
     {
@@ -143,6 +150,17 @@ class UpdateAllDataQualityCommand extends AbstractCommand
 
         $output->writeln(sprintf('Found <info>%d</info> DataQualityConfig object(s) to process.', count($configs)));
 
+        try {
+            $configs = $this->dependencyResolver->sort($configs);
+        } catch (DataQualityException $e) {
+            $output->writeln(sprintf('<error>Dependency sort failed: %s</error>', $e->getMessage()));
+            for ($p = $e->getPrevious(); $p !== null; $p = $p->getPrevious()) {
+                $output->writeln(sprintf('<error>  caused by: %s</error>', $p->getMessage()));
+            }
+
+            return Command::FAILURE;
+        }
+
         $consolePath = realpath(PIMCORE_PROJECT_ROOT . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'console');
         if ($consolePath === false) {
             $output->writeln(sprintf('<error>bin/console not found under PIMCORE_PROJECT_ROOT (%s).</error>', PIMCORE_PROJECT_ROOT));
@@ -178,7 +196,7 @@ class UpdateAllDataQualityCommand extends AbstractCommand
                 $id,
                 $batchSize
             );
-            passthru($cmd, $resultCode);
+            $resultCode = $this->spawnChild($cmd);
 
             if ($resultCode === 0) {
                 $succeeded[] = $label;
@@ -202,6 +220,18 @@ class UpdateAllDataQualityCommand extends AbstractCommand
         }
 
         return empty($failed) ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    /**
+     * Spawn one child `dataquality:update` process and return its exit code.
+     * `passthru` so the child's stdout streams live in the parent terminal;
+     * tests override to record call order and return canned codes.
+     */
+    protected function spawnChild(string $cmd): int
+    {
+        passthru($cmd, $resultCode);
+
+        return $resultCode;
     }
 
     private function formatExitCode(int $code): string

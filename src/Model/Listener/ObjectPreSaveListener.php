@@ -3,22 +3,38 @@
 namespace Basilicom\DataQualityBundle\Model\Listener;
 
 use Basilicom\DataQualityBundle\Service\DataQualityService;
+use Basilicom\DataQualityBundle\Service\DependencyResolver;
 use Exception;
 use Pimcore\Event\Model\DataObjectEvent;
 use Pimcore\Event\Model\ElementEventInterface;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Tool\Admin;
 
+/**
+ * Pre-save data-quality recompute trigger.
+ *
+ * The save path's outer `catch (Exception)` (below) is a documented
+ * logged-and-swallowed surface: any `DataQualityException` from
+ * `DependencyResolver::sort` (cycles, duplicate producers, missing
+ * producers) and any rule-level exception are caught so the admin save
+ * completes even when DQ recompute is impossible. The failure is logged
+ * at warning level; hardening to a loud failure is its own architectural
+ * concern.
+ */
 class ObjectPreSaveListener
 {
     private static bool $listenerEnabled = true;
 
     private DataQualityService $dataQualityService;
 
+    private DependencyResolver $dependencyResolver;
+
     public function __construct(
-        DataQualityService $dataQualityService
+        DataQualityService $dataQualityService,
+        DependencyResolver $dependencyResolver
     ) {
         $this->dataQualityService = $dataQualityService;
+        $this->dependencyResolver = $dependencyResolver;
     }
 
     public function onPreSave(ElementEventInterface $event)
@@ -39,8 +55,10 @@ class ObjectPreSaveListener
                 return; // no data quality configurations
             }
 
-            self::withListenerDisabled(function () use ($dataObject, $dataQualityConfigs): void {
-                foreach ($dataQualityConfigs as $dataQualityConfig) {
+            $sorted = $this->dependencyResolver->sort($dataQualityConfigs);
+
+            self::withListenerDisabled(function () use ($dataObject, $sorted): void {
+                foreach ($sorted as $dataQualityConfig) {
                     $isSystemAllowed = (bool) $dataQualityConfig->getDataQualitySystemAllowed();
                     if (!$isSystemAllowed && $this->isBackendUserActive()) {
                         continue;
@@ -49,7 +67,13 @@ class ObjectPreSaveListener
                 }
             });
         } catch (Exception $exception) {
-            // just skip
+            if (isset($dataObject)) {
+                \Pimcore\Logger::warning(sprintf(
+                    'DataQualityBundle: pre-save DQ recompute skipped for oo_id=%d: %s',
+                    (int) $dataObject->getId(),
+                    $exception->getMessage(),
+                ), ['exception' => $exception]);
+            }
         }
     }
 

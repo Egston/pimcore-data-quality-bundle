@@ -2,6 +2,8 @@
 
 namespace Basilicom\DataQualityBundle\Command;
 
+use Basilicom\DataQualityBundle\Definition\DependentDefinition;
+use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\Exception\DataQualityException;
 use Basilicom\DataQualityBundle\Exception\NoDataObjectsAvailableException;
 use Basilicom\DataQualityBundle\Service\DataQualityService;
@@ -28,10 +30,14 @@ class UpdateDataQualityCommand extends AbstractCommand
 
     private DataQualityService $dataQualityService;
 
+    private FieldDefinitionFactory $fieldDefinitionFactory;
+
     public function __construct(
-        DataQualityService $dataQualityService
+        DataQualityService $dataQualityService,
+        FieldDefinitionFactory $fieldDefinitionFactory
     ) {
         $this->dataQualityService = $dataQualityService;
+        $this->fieldDefinitionFactory = $fieldDefinitionFactory;
 
         parent::__construct();
     }
@@ -100,6 +106,18 @@ class UpdateDataQualityCommand extends AbstractCommand
      */
     protected function executeMainProcess(int $qualityConfigId, bool $fullSave = false): int
     {
+        $config = DataQualityConfig::getById($qualityConfigId);
+        if ($config instanceof DataQualityConfig) {
+            $missing = $this->unsatisfiedDependencies($config);
+            if ($missing !== []) {
+                foreach ($missing as $msg) {
+                    $this->output->writeln(sprintf('<error>%s</error>', $msg));
+                }
+
+                return Command::FAILURE;
+            }
+        }
+
         $batchNumber = 1;
         do {
             $consolePath = realpath(PIMCORE_PROJECT_ROOT . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'console');
@@ -123,6 +141,105 @@ class UpdateDataQualityCommand extends AbstractCommand
         } while ($resultCode == 0);
 
         return $resultCode === self::STOP_CHILD_PROCESS ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    /**
+     * Single-config invocations cannot transparently chase a
+     * `DependentDefinition` producer that hasn't been run yet — that
+     * would spawn a sibling child unaware to the operator. Refuse with a
+     * concrete message naming the missing column. The caller decides
+     * whether to run the producer first (`dataquality:update <producerId>`)
+     * or to run `dataquality:update-all` which sorts the full set.
+     *
+     * @return string[] Human-readable refusal messages, empty when no
+     *                  `DependentDefinition` dependencies are present.
+     */
+    private function unsatisfiedDependencies(DataQualityConfig $config): array
+    {
+        $messages = [];
+        $rules = $config->getDataQualityRules();
+        if ($rules === null) {
+            return $messages;
+        }
+
+        $configId = (int) $config->getId();
+        $configName = (string) ($config->getDataQualityName() ?? '');
+
+        foreach ($rules->getItems() as $item) {
+            try {
+                $fieldDef = $this->fieldDefinitionFactory->get($item);
+            } catch (\Throwable $e) {
+                \Pimcore\Logger::warning(sprintf(
+                    'DataQualityBundle: dependency check skipped unresolvable rule "%s" on config #%d "%s": %s',
+                    (string) $item->getCondition(),
+                    $configId,
+                    $configName,
+                    $e->getMessage(),
+                ), ['exception' => $e]);
+
+                continue;
+            }
+
+            $rule = $fieldDef->getConditionClass();
+            if (!$rule instanceof DependentDefinition) {
+                continue;
+            }
+
+            try {
+                $deps = $rule->dependsOnColumns($fieldDef->getParameters(), $config);
+            } catch (\Throwable $e) {
+                $messages[] = sprintf(
+                    'DataQualityConfig #%d "%s": rule %s.dependsOnColumns() failed: %s',
+                    $configId,
+                    $configName,
+                    $rule::class,
+                    $e->getMessage(),
+                );
+
+                continue;
+            }
+
+            foreach ($deps as $dep) {
+                $producer = $this->findProducer($dep['class'], $dep['column']);
+                if ($producer === null) {
+                    $messages[] = sprintf(
+                        'DataQualityConfig #%d "%s" depends on column "%s" on class "%s", but no DataQualityConfig produces it. Create the producing config before running this one.',
+                        $configId,
+                        $configName,
+                        $dep['column'],
+                        $dep['class'],
+                    );
+
+                    continue;
+                }
+                $messages[] = sprintf(
+                    'DataQualityConfig #%d "%s" depends on column "%s" on class "%s". Run the producing config (DataQualityConfig #%d "%s") first, or invoke dataquality:update-all which sorts the full set.',
+                    $configId,
+                    $configName,
+                    $dep['column'],
+                    $dep['class'],
+                    (int) $producer->getId(),
+                    (string) ($producer->getDataQualityName() ?? ''),
+                );
+            }
+        }
+
+        return $messages;
+    }
+
+    private function findProducer(string $classId, string $column): ?DataQualityConfig
+    {
+        $listing = new DataQualityConfig\Listing();
+        $listing->setUnpublished(true);
+        foreach ($listing as $config) {
+            if ((string) $config->getDataQualityClass() === $classId
+                && (string) $config->getDataQualityField() === $column
+            ) {
+                return $config;
+            }
+        }
+
+        return null;
     }
 
     /**
