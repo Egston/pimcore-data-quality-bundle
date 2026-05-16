@@ -37,6 +37,16 @@ services:
       tags:
         - { name: data_quality.rule, key: 'Minimum String Length' }
 
+    Basilicom\DataQualityBundle\Definition\LocalizedFillRatio:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Localized Fill Ratio' }
+
+    Basilicom\DataQualityBundle\Definition\DistinctFromSource:
+      public: true
+      tags:
+        - { name: data_quality.rule, key: 'Distinct From Source' }
+
     Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory:
       public: true
 

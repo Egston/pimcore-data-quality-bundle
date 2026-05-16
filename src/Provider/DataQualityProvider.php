@@ -7,6 +7,7 @@ namespace Basilicom\DataQualityBundle\Provider;
 use Basilicom\DataQualityBundle\Definition\DefinitionException;
 use Basilicom\DataQualityBundle\Definition\GateFactory;
 use Basilicom\DataQualityBundle\Definition\LanguageScope;
+use Basilicom\DataQualityBundle\Definition\LocalizedAwareDefinition;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Basilicom\DataQualityBundle\DefinitionsCollection\Factory\FieldDefinitionFactory;
 use Basilicom\DataQualityBundle\DefinitionsCollection\FieldDefinition;
@@ -32,8 +33,7 @@ final class DataQualityProvider
         private readonly FieldDefinitionFactory $fieldDefinitionFactory,
         private readonly FieldPathResolverInterface $fieldPathResolver,
         private readonly ?GateFactory $gateFactory = null,
-    ) {
-    }
+    ) {}
 
     private function setDataQualityPercent(
         AbstractObject $dataObject,
@@ -204,33 +204,15 @@ final class DataQualityProvider
                     $ruleIndex,
                 );
 
-                $validFields = [];
-                if (!$apply) {
-                    $valid = true;
-                } elseif ($this->isObjectBricks($classFieldDefinition)) {
-                    [$valid, $validFields] = $this->validateObjectBricks(
-                        $dataObject,
-                        $getter,
-                        $fieldDefinition,
-                        $context
-                    );
-                } elseif ($isLocalizedField) {
-                    [$valid, $validFields] = $this->validateLanguages(
-                        $dataObject,
-                        $getter,
-                        $fieldDefinition,
-                        $classFieldDefinition,
-                        $context
-                    );
-                } else {
-                    $value = $dataObject->$getter();
-                    $valid = $fieldDefinition->getConditionClass()->validate(
-                        $value,
-                        $classFieldDefinition,
-                        $fieldDefinition->getParameters(),
-                        $context
-                    );
-                }
+                [$valid, $validFields] = $this->dispatchRule(
+                    $dataObject,
+                    $getter,
+                    $fieldDefinition,
+                    $classFieldDefinition,
+                    $isLocalizedField,
+                    $apply,
+                    $context,
+                );
 
                 $dataQualityFields[] = new DataQualityFieldViewModel(
                     $fieldDefinition->getTitle(),
@@ -308,6 +290,65 @@ final class DataQualityProvider
         }
     }
 
+    /**
+     * Route a single (field, rule) pair through the validator family.
+     * `LocalizedAwareDefinition`-marked rules see the full scored set
+     * in one call and manage their own per-language sweep through the
+     * context — non-marker rules continue iterating once per language
+     * via `validateLanguages()`. Object-brick fields take the per-brick
+     * fan-out path regardless of marker status.
+     *
+     * @return array{0: bool, 1: array<string, bool>}
+     */
+    private function dispatchRule(
+        AbstractObject $dataObject,
+        string $getter,
+        FieldDefinition $fieldDefinition,
+        Data $classFieldDefinition,
+        bool $isLocalizedField,
+        bool $apply,
+        RuleContext $context,
+    ): array {
+        if (!$apply) {
+            return [true, []];
+        }
+
+        if ($this->isObjectBricks($classFieldDefinition)) {
+            return $this->validateObjectBricks($dataObject, $getter, $fieldDefinition, $context);
+        }
+
+        if ($isLocalizedField && $fieldDefinition->getConditionClass() instanceof LocalizedAwareDefinition) {
+            $valid = $fieldDefinition->getConditionClass()->validate(
+                null,
+                $classFieldDefinition,
+                $fieldDefinition->getParameters(),
+                $context,
+            );
+
+            return [$valid, []];
+        }
+
+        if ($isLocalizedField) {
+            return $this->validateLanguages(
+                $dataObject,
+                $getter,
+                $fieldDefinition,
+                $classFieldDefinition,
+                $context,
+            );
+        }
+
+        $value = $dataObject->$getter();
+        $valid = $fieldDefinition->getConditionClass()->validate(
+            $value,
+            $classFieldDefinition,
+            $fieldDefinition->getParameters(),
+            $context,
+        );
+
+        return [$valid, []];
+    }
+
     private function getDataQualityRules(DataQualityConfig $dataQualityConfig): array
     {
         $fieldCollection = $dataQualityConfig->getDataQualityRules();
@@ -383,7 +424,7 @@ final class DataQualityProvider
 
         return [
             $valid,
-            $validFields
+            $validFields,
         ];
     }
 
@@ -423,7 +464,7 @@ final class DataQualityProvider
 
         return [
             $valid,
-            $languageValidity
+            $languageValidity,
         ];
     }
 

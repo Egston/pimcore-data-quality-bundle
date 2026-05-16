@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle\Definition\Gate;
 
+use Basilicom\DataQualityBundle\Definition\DefinitionAbstract;
 use Basilicom\DataQualityBundle\Definition\Gate;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
@@ -21,8 +22,7 @@ final class AllLangsFilledGate implements Gate
     {
         $fieldName = $fieldDef->getName();
         foreach ($ctx->getScoredLanguages() as $language) {
-            $value = $ctx->getValue($fieldName, $language);
-            if ($value === null || $value === '' || $value === []) {
+            if (!DefinitionAbstract::isFilled($ctx->getValue($fieldName, $language))) {
                 return false;
             }
         }

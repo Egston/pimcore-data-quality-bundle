@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle\Definition\Gate;
 
+use Basilicom\DataQualityBundle\Definition\DefinitionAbstract;
 use Basilicom\DataQualityBundle\Definition\Gate;
 use Basilicom\DataQualityBundle\Definition\RuleContext;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
@@ -19,8 +20,8 @@ final class SourceFilledGate implements Gate
 {
     public function evaluate(RuleContext $ctx, Data $fieldDef): bool
     {
-        $value = $ctx->getValue($fieldDef->getName(), $ctx->getSourceLanguage());
-
-        return $value !== null && $value !== '' && $value !== [];
+        return DefinitionAbstract::isFilled(
+            $ctx->getValue($fieldDef->getName(), $ctx->getSourceLanguage())
+        );
     }
 }
