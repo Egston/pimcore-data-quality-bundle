@@ -19,6 +19,8 @@ class DataQualityConfig extends Concrete
 
     private ?string $dataQualityName = null;
 
+    private ?Fieldcollection $dataQualityRules = null;
+
     /**
      * @return string[]|null
      */
@@ -43,5 +45,15 @@ class DataQualityConfig extends Concrete
     public function setDataQualityName(?string $value): void
     {
         $this->dataQualityName = $value;
+    }
+
+    public function getDataQualityRules(): ?Fieldcollection
+    {
+        return $this->dataQualityRules;
+    }
+
+    public function setDataQualityRules(?Fieldcollection $value): void
+    {
+        $this->dataQualityRules = $value;
     }
 }

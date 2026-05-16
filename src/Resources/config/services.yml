@@ -65,6 +65,11 @@ services:
     Basilicom\DataQualityBundle\EventSubscriber\:
       resource: '../../EventSubscriber/'
 
+    Basilicom\DataQualityBundle\EventSubscriber\DataQualityConfigPreSaveSubscriber:
+      tags:
+        - { name: kernel.event_listener, event: pimcore.dataobject.preAdd, method: onPreSave }
+        - { name: kernel.event_listener, event: pimcore.dataobject.preUpdate, method: onPreSave }
+
     Basilicom\DataQualityBundle\Command\UpdateDataQualityCommand:
       tags:
         - { name: console.command, command: 'dataquality:update' }
