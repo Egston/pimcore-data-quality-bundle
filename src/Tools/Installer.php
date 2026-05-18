@@ -99,6 +99,7 @@ class Installer extends SettingsStoreAwareInstaller
             }
 
             $data    = \file_get_contents($path);
+            $this->assertModernSchemaJson($key, $path, $data);
             $success = Service::importClassDefinitionFromJson($class, $data, false, true);
 
             if (!$success) {
@@ -151,6 +152,7 @@ class Installer extends SettingsStoreAwareInstaller
             $fieldcollection->setKey($key);
 
             $data    = \file_get_contents($path);
+            $this->assertModernSchemaJson($key, $path, $data);
             $success = Service::importFieldCollectionFromJson($fieldcollection, $data);
 
             if (!$success) {
@@ -159,6 +161,36 @@ class Installer extends SettingsStoreAwareInstaller
                     $key
                 ));
             }
+        }
+    }
+
+    /**
+     * Reject install JSONs that still use the legacy Pimcore `<= 10` `"childs"`
+     * key for layout children. Pimcore 11's import path
+     * (`Service::generateLayoutTreeFromArray`) only reads `"children"` and
+     * the `"childs"` key was deprecated without an alias — passing such a
+     * JSON to the importer silently produces an empty class definition,
+     * which `Definition::save()` then realises by issuing
+     * `ALTER TABLE ... DROP COLUMN` for every "removed" field. That
+     * destroys data on existing installs.
+     *
+     * Substring check rather than parsed-tree walk because the failure mode
+     * is binary: any occurrence of `"childs":` taints the entire JSON and
+     * makes the import unsafe to run.
+     */
+    private function assertModernSchemaJson(string $key, string $path, string $json): void
+    {
+        if (\str_contains($json, '"childs":')) {
+            throw new InstallationException(\sprintf(
+                'Refusing to import "%s" from %s: JSON contains the legacy '
+                . '"childs" layout key (Pimcore <= 10). Pimcore 11+ only reads '
+                . '"children"; importing as-is would silently produce an empty '
+                . 'definition and DROP existing columns. Re-export from the '
+                . 'Pimcore 11 admin (which writes "children") or rename keys '
+                . 'before retrying.',
+                $key,
+                $path
+            ));
         }
     }
 

@@ -19,7 +19,7 @@
         "bodyStyle": null,
         "datatype": "layout",
         "permissions": null,
-        "childs": [
+        "children": [
             {
                 "fieldtype": "region",
                 "name": "Region",
@@ -33,7 +33,7 @@
                 "bodyStyle": "",
                 "datatype": "layout",
                 "permissions": null,
-                "childs": [
+                "children": [
                     {
                         "fieldtype": "panel",
                         "layout": null,
@@ -49,7 +49,7 @@
                         "bodyStyle": "border:0;  padding-top: 10px; padding-right: 30px; padding-left: 10px;",
                         "datatype": "layout",
                         "permissions": null,
-                        "childs": [
+                        "children": [
                             {
                                 "fieldtype": "select",
                                 "options": null,
@@ -124,7 +124,7 @@
                         "bodyStyle": "border:0;  padding-top: 10px; padding-right: 30px;",
                         "datatype": "layout",
                         "permissions": null,
-                        "childs": [
+                        "children": [
                             {
                                 "fieldtype": "select",
                                 "options": null,
@@ -225,7 +225,7 @@
                         "bodyStyle": "border:0;  padding-top: 10px; padding-right: 10px;",
                         "datatype": "layout",
                         "permissions": null,
-                        "childs": [
+                        "children": [
                             {
                                 "fieldtype": "numeric",
                                 "width": 90,
