@@ -21,7 +21,7 @@
   ],
   "require": {
     "php": ">=8.0",
-    "pimcore/pimcore": ">=11",
+    "pimcore/pimcore": "^11.0",
     "pimcore/admin-ui-classic-bundle": "^1.0",
     "symfony/expression-language": "^6.4 || ^7.0"
   },
