@@ -53,7 +53,7 @@
                             {
                                 "fieldtype": "select",
                                 "options": null,
-                                "width": 300,
+                                "width": 450,
                                 "defaultValue": "",
                                 "optionsProviderClass": "@options_provider.object_fields",
                                 "optionsProviderData": "",
@@ -79,7 +79,7 @@
                             },
                             {
                                 "fieldtype": "input",
-                                "width": 300,
+                                "width": 450,
                                 "defaultValue": null,
                                 "queryColumnType": "varchar",
                                 "columnType": "varchar",
@@ -128,7 +128,7 @@
                             {
                                 "fieldtype": "select",
                                 "options": null,
-                                "width": 300,
+                                "width": 450,
                                 "defaultValue": "",
                                 "optionsProviderClass": "@options_provider.definitions",
                                 "optionsProviderData": "",
@@ -154,7 +154,7 @@
                             },
                             {
                                 "fieldtype": "input",
-                                "width": 300,
+                                "width": 450,
                                 "defaultValue": null,
                                 "queryColumnType": "varchar",
                                 "columnType": "varchar",
@@ -180,7 +180,7 @@
                             },
                             {
                                 "fieldtype": "input",
-                                "width": 300,
+                                "width": 450,
                                 "defaultValue": null,
                                 "queryColumnType": "varchar",
                                 "columnType": "varchar",
@@ -228,7 +228,7 @@
                         "children": [
                             {
                                 "fieldtype": "numeric",
-                                "width": 90,
+                                "width": 130,
                                 "defaultValue": 1,
                                 "queryColumnType": "double",
                                 "columnType": "double",
