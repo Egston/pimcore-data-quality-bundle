@@ -457,8 +457,32 @@ final class DataQualityProvider
     ): array {
         $valid = true;
         $validFields = [];
-        /** @var Objectbrick $brickContainer */
+        /** @var Objectbrick|null $brickContainer */
         $brickContainer = $dataObject->$getter();
+
+        // Pimcore's `getXxx()` for an objectbricks field is declared `?Objectbrick`:
+        // it auto-instantiates an empty container *only* when the generated PHP
+        // class `\Pimcore\Model\DataObject\<Class>\<Brick>` exists. If the
+        // class-definition lists a brick whose per-class container PHP was
+        // never generated (orphaned class-def vs. brick-def allow-list), the
+        // getter returns null and we previously NPE'd inside the loop. Treat
+        // null the same as a container with zero items — no items to validate
+        // means the rule is vacuously valid, matching the existing behaviour
+        // for empty containers. Log a warning so the orphan stays visible.
+        if ($brickContainer === null) {
+            \Pimcore\Logger::warning(\sprintf(
+                'DataQualityBundle: objectbrick getter "%s" returned null on oo_id=%d (class "%s") — '
+                . 'the per-class brick PHP is missing (class-definition references a brick whose '
+                . 'allow-list does not include this class, or `classes-rebuild` has not run). '
+                . 'Skipping the rule vacuously.',
+                $getter,
+                (int) $dataObject->getId(),
+                (string) $dataObject->getClassName(),
+            ));
+
+            return [$valid, $validFields];
+        }
+
         foreach ($brickContainer->getItems() as $brickItem) {
             $brickFieldDefinitions = $brickItem->getDefinition()->getFieldDefinitions();
             foreach ($brickFieldDefinitions as $brickField => $brickFieldValue) {
