@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Basilicom\DataQualityBundle\Tools;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Extension\Bundle\Installer\Exception\InstallationException;
 use Pimcore\Extension\Bundle\Installer\SettingsStoreAwareInstaller;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -14,6 +15,28 @@ use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 
 class Installer extends SettingsStoreAwareInstaller
 {
+    /**
+     * Pimcore-managed bookkeeping columns on `object_store_<id>` and
+     * `object_query_<id>` tables. These are part of the table's contract
+     * with Pimcore and are not described by class-definition JSON, so the
+     * column-drop pre-flight check excludes them from comparison.
+     */
+    private const CLASS_TABLE_BOOKKEEPING = ['oo_id', 'oo_classId', 'oo_className'];
+
+    /**
+     * Pimcore-managed bookkeeping columns on `object_collection_<key>_<id>`
+     * tables.
+     */
+    private const FIELDCOLLECTION_TABLE_BOOKKEEPING = ['id', 'index', 'fieldname'];
+
+    /**
+     * Suffixes for Pimcore field types that materialise as multiple columns
+     * (e.g. image fields adding `<name>__hash` and `<name>__type`). When the
+     * base name is in the JSON, sibling `__hash` / `__type` / `__metadata`
+     * columns are accepted as managed by the same field definition.
+     */
+    private const AUXILIARY_COLUMN_SUFFIXES = ['__hash', '__type', '__metadata'];
+
     private string $installSourcesPath;
     private array $classesToInstall = [
         'DataQualityConfig' => 'DQC',
@@ -21,6 +44,7 @@ class Installer extends SettingsStoreAwareInstaller
 
     public function __construct(
         BundleInterface $bundle,
+        private readonly Connection $connection,
     ) {
         $this->installSourcesPath = __DIR__ . '/../Resources/install';
 
@@ -100,6 +124,13 @@ class Installer extends SettingsStoreAwareInstaller
 
             $data    = \file_get_contents($path);
             $this->assertModernSchemaJson($key, $path, $data);
+
+            $expectedColumns = self::expectedColumnNamesFromJson($data);
+            $classId         = $mapping[$key];
+            foreach (['object_store_' . $classId, 'object_query_' . $classId] as $table) {
+                $this->assertNoColumnDrop($key, $table, $expectedColumns, self::CLASS_TABLE_BOOKKEEPING);
+            }
+
             $success = Service::importClassDefinitionFromJson($class, $data, false, true);
 
             if (!$success) {
@@ -153,6 +184,12 @@ class Installer extends SettingsStoreAwareInstaller
 
             $data    = \file_get_contents($path);
             $this->assertModernSchemaJson($key, $path, $data);
+
+            $expectedColumns = self::expectedColumnNamesFromJson($data);
+            foreach ($this->findFieldcollectionTables($key) as $table) {
+                $this->assertNoColumnDrop($key, $table, $expectedColumns, self::FIELDCOLLECTION_TABLE_BOOKKEEPING);
+            }
+
             $success = Service::importFieldCollectionFromJson($fieldcollection, $data);
 
             if (!$success) {
@@ -194,6 +231,118 @@ class Installer extends SettingsStoreAwareInstaller
         }
     }
 
+    /**
+     * Walk a class / fieldcollection install JSON and return the list of
+     * column-bearing data-field names. Layout-only nodes (panel, region,
+     * fieldset, plain `text` labels, etc.) are excluded — they have no
+     * corresponding DB column.
+     *
+     * Public static so it is independently testable from the kernel-free
+     * PHPUnit suite without instantiating the Installer or booting Pimcore.
+     */
+    public static function expectedColumnNamesFromJson(string $json): array
+    {
+        $data = \json_decode($json, true);
+        if (!\is_array($data) || !isset($data['layoutDefinitions']) || !\is_array($data['layoutDefinitions'])) {
+            return [];
+        }
+
+        $names = [];
+        self::collectFieldNamesRecursive($data['layoutDefinitions'], $names);
+
+        return \array_values(\array_unique($names));
+    }
+
+    /**
+     * @param array<mixed> $node
+     * @param list<string> $names
+     */
+    private static function collectFieldNamesRecursive(array $node, array &$names): void
+    {
+        $layoutFieldtypes = [
+            'panel', 'tabpanel', 'region', 'accordion', 'fieldset',
+            'fieldcontainer', 'tab', 'button', 'text', 'iframe', 'spacer',
+        ];
+
+        $fieldtype = $node['fieldtype'] ?? null;
+        $name      = $node['name'] ?? null;
+        if (\is_string($fieldtype) && \is_string($name) && !\in_array($fieldtype, $layoutFieldtypes, true)) {
+            $names[] = $name;
+        }
+
+        foreach ($node['children'] ?? [] as $child) {
+            if (\is_array($child)) {
+                self::collectFieldNamesRecursive($child, $names);
+            }
+        }
+    }
+
+    /**
+     * Refuse to import a definition when its JSON omits a column that
+     * currently exists on the target DB table. `Definition::save()` would
+     * realise the diff as `ALTER TABLE ... DROP COLUMN`, destroying any
+     * data in those columns. The drop may still be the right thing — e.g.
+     * a field really was removed — but the right path then is an explicit
+     * `ALTER TABLE` or admin-driven removal, not a silent re-import.
+     *
+     * Bookkeeping columns (`oo_id`, `id`, `fieldname`, …) and Pimcore
+     * auxiliary suffix columns (`<base>__hash`, `<base>__type`,
+     * `<base>__metadata` when `<base>` is in the JSON) are excluded from
+     * the comparison.
+     *
+     * @param list<string> $expectedColumns
+     * @param list<string> $bookkeeping
+     */
+    private function assertNoColumnDrop(string $importKey, string $tableName, array $expectedColumns, array $bookkeeping): void
+    {
+        $schemaManager = $this->connection->createSchemaManager();
+        if (!$schemaManager->tablesExist([$tableName])) {
+            return; // Fresh install — no existing columns to compare against.
+        }
+
+        $existing       = $schemaManager->listTableColumns($tableName);
+        $existingNames  = \array_map(static fn ($c) => $c->getName(), $existing);
+        $auxiliaryNames = [];
+        foreach ($existingNames as $columnName) {
+            foreach (self::AUXILIARY_COLUMN_SUFFIXES as $suffix) {
+                if (\str_ends_with($columnName, $suffix)) {
+                    $base = \substr($columnName, 0, -\strlen($suffix));
+                    if (\in_array($base, $expectedColumns, true)) {
+                        $auxiliaryNames[] = $columnName;
+                    }
+                }
+            }
+        }
+
+        $wouldDrop = \array_diff($existingNames, $expectedColumns, $bookkeeping, $auxiliaryNames);
+        if (!empty($wouldDrop)) {
+            throw new InstallationException(\sprintf(
+                'Refusing to import "%s": columns [%s] exist on table `%s` but are not declared in the install JSON. '
+                . 'Re-importing would issue ALTER TABLE DROP COLUMN and destroy any data in those columns. '
+                . 'If the removal is intentional, drop the columns manually first (or uninstall + reinstall the bundle).',
+                $importKey,
+                \implode(', ', $wouldDrop),
+                $tableName
+            ));
+        }
+    }
+
+    /**
+     * Discover every `object_collection_<key>_<class-id>` table that exists
+     * for the given fieldcollection key. Pimcore creates one such table per
+     * class that references the fieldcollection.
+     *
+     * @return list<string>
+     */
+    private function findFieldcollectionTables(string $fieldcollectionKey): array
+    {
+        $schemaManager = $this->connection->createSchemaManager();
+        $tables        = $schemaManager->listTableNames();
+        $prefix        = 'object_collection_' . $fieldcollectionKey . '_';
+
+        return \array_values(\array_filter($tables, static fn ($t) => \str_starts_with($t, $prefix)));
+    }
+
     private function resyncFieldCollections(): void
     {
         $fieldcollections = $this->findInstallFiles(
@@ -209,6 +358,13 @@ class Installer extends SettingsStoreAwareInstaller
             }
 
             $data    = \file_get_contents($path);
+            $this->assertModernSchemaJson($key, $path, $data);
+
+            $expectedColumns = self::expectedColumnNamesFromJson($data);
+            foreach ($this->findFieldcollectionTables($key) as $table) {
+                $this->assertNoColumnDrop($key, $table, $expectedColumns, self::FIELDCOLLECTION_TABLE_BOOKKEEPING);
+            }
+
             $success = Service::importFieldCollectionFromJson($fieldcollection, $data);
 
             if (!$success) {

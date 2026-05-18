@@ -37,6 +37,11 @@ generated PHP classes under `var/classes/`. Existing rows receive `NULL`
 for any newly-added nullable columns. `pimcore:bundle:install` is one-shot
 and cannot be re-run for this purpose on Pimcore 11.
 
+Before re-importing, the command compares the install-JSON field set
+against the current DB columns and refuses to proceed if any existing
+column would be dropped, so a silent destructive re-import (e.g. caused
+by a regressed or malformed JSON) is not reachable.
+
 ## Configuration
 
 ### Add field to object class

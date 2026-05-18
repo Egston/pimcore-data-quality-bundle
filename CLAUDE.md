@@ -83,6 +83,8 @@ bin/console pimcore:datahub:graphql:clear-cache
 
 `dataquality:resync-schema` calls `Installer::resyncSchema()` which re-imports both JSON files onto the existing definitions. The underlying `Definition::save()` runs the necessary `ALTER TABLE` DDL on the affected tables (`object_collection_DataQualityFieldDefinition_*`, `object_DataQualityConfig`, `object_query_DataQualityConfig`) and regenerates the PHP classes under `var/classes/`. Existing rows receive `NULL` for any newly-added nullable columns.
 
+Before re-importing, the Installer compares the install-JSON field set against the current DB columns on each affected table. If any DB column (other than Pimcore bookkeeping columns and auxiliary `<base>__hash` / `__type` / `__metadata` columns) would be dropped, the command aborts with a clear `Refusing to import …` error. A legitimate field removal therefore requires either uninstalling + reinstalling the bundle, or dropping the columns manually first — silent destructive re-imports are no longer reachable.
+
 ### Testing
 Kernel-free PHPUnit suite under `tests/Unit/` covers pure rule/value-object logic. The bundle ships its own `require-dev` so install vendors locally and run the suite on the host:
 
