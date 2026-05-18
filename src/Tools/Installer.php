@@ -43,6 +43,24 @@ class Installer extends SettingsStoreAwareInstaller
         parent::uninstall();
     }
 
+    /**
+     * Re-import the bundle's class + fieldcollection install JSONs onto the
+     * already-installed definitions. Drives the underlying `Definition::save()`
+     * which runs the necessary `ALTER TABLE` DDL for added / removed columns
+     * and regenerates the generated PHP classes under `var/classes/`.
+     *
+     * Pimcore 11 ships `pimcore:bundle:install` / `:uninstall` but no `:update`
+     * hook, and `install()` is refused once the bundle is marked installed
+     * (`SettingsStoreAwareInstaller::canBeInstalled()` returns false). This
+     * method is the schema-only re-sync path, invoked via the
+     * `dataquality:resync-schema` console command.
+     */
+    public function resyncSchema(): void
+    {
+        $this->resyncFieldCollections();
+        $this->installClasses();
+    }
+
     private function getClassesToInstall(): array
     {
         $result = [];
@@ -138,6 +156,32 @@ class Installer extends SettingsStoreAwareInstaller
             if (!$success) {
                 throw new InstallationException(\sprintf(
                     'Failed to create object fieldcollection "%s"',
+                    $key
+                ));
+            }
+        }
+    }
+
+    private function resyncFieldCollections(): void
+    {
+        $fieldcollections = $this->findInstallFiles(
+            $this->installSourcesPath . '/fieldcollection_sources',
+            '/^fieldcollection_(.*)_export\.json$/'
+        );
+
+        foreach ($fieldcollections as $key => $path) {
+            $fieldcollection = Fieldcollection\Definition::getByKey($key);
+            if (!$fieldcollection) {
+                $fieldcollection = new Fieldcollection\Definition();
+                $fieldcollection->setKey($key);
+            }
+
+            $data    = \file_get_contents($path);
+            $success = Service::importFieldCollectionFromJson($fieldcollection, $data);
+
+            if (!$success) {
+                throw new InstallationException(\sprintf(
+                    'Failed to re-import fieldcollection "%s"',
                     $key
                 ));
             }

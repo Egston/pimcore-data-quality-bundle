@@ -71,7 +71,17 @@ When a rule class is **deleted or renamed** in this bundle, the sync hook ships 
 `View/DataQualityViewModel.php`, `View/DataQualityGroupViewModel.php`, `View/DataQualityFieldViewModel.php` — hierarchical result structure: overall score → groups → individual field results.
 
 ### Installer
-`Tools/Installer.php` installs the `DataQualityConfig` data object class and the `DataQualityFieldDefinition` field collection from `Resources/install/` JSON exports. Re-running `pimcore:bundle:install` is needed after changes to these exports.
+`Tools/Installer.php` installs the `DataQualityConfig` data object class and the `DataQualityFieldDefinition` field collection from `Resources/install/` JSON exports. `Installer::install()` is one-shot — Pimcore 11 refuses to re-run `pimcore:bundle:install` on an already-installed bundle (`SettingsStoreAwareInstaller::canBeInstalled()` returns `false`), and even if it did, `installFieldCollection()` conservatively skips existing fieldcollections to protect against name collisions.
+
+After pulling bundle changes that **modify the install JSONs** (added / removed columns on the class or fieldcollection), run:
+
+```bash
+bin/console dataquality:resync-schema
+bin/console cache:clear --no-warmup && bin/console cache:warmup
+bin/console pimcore:datahub:graphql:clear-cache
+```
+
+`dataquality:resync-schema` calls `Installer::resyncSchema()` which re-imports both JSON files onto the existing definitions. The underlying `Definition::save()` runs the necessary `ALTER TABLE` DDL on the affected tables (`object_collection_DataQualityFieldDefinition_*`, `object_DataQualityConfig`, `object_query_DataQualityConfig`) and regenerates the PHP classes under `var/classes/`. Existing rows receive `NULL` for any newly-added nullable columns.
 
 ### Testing
 Kernel-free PHPUnit suite under `tests/Unit/` covers pure rule/value-object logic. The bundle ships its own `require-dev` so install vendors locally and run the suite on the host:
@@ -98,4 +108,4 @@ When a localized field rule is evaluated, it must be valid in **all** configured
 | Add/change routes | `src/Resources/config/pimcore/routing.yml` |
 | Add/change services | `src/Resources/config/services.yml` |
 | Add/change admin tab behavior | `src/EventSubscriber/PimcoreAdminSubscriber.php` |
-| Update install class/fieldcollection | `src/Resources/install/`, then re-run `pimcore:bundle:install` |
+| Update install class/fieldcollection | Edit `src/Resources/install/`, then run `bin/console dataquality:resync-schema` + cache reset |

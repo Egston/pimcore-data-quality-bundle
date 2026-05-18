@@ -118,6 +118,10 @@ services:
       tags:
         - { name: console.command, command: 'dataquality:update-all' }
 
+    Basilicom\DataQualityBundle\Command\ResyncSchemaCommand:
+      tags:
+        - { name: console.command, command: 'dataquality:resync-schema' }
+
     #
     # custom Renderer
     #

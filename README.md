@@ -18,6 +18,25 @@ one- or multiple quality values are computed and stored in data objects.
 3. Enable the bundle ``bin/console pimcore:bundle:enable DataQualityBundle``
 3. Install the bundle ``bin/console pimcore:bundle:install DataQualityBundle``
 
+## Upgrading
+
+When a new bundle version adds or removes columns on the `DataQualityConfig`
+class or the `DataQualityFieldDefinition` fieldcollection, re-sync the schema
+onto your already-installed Pimcore:
+
+```bash
+bin/console dataquality:resync-schema
+bin/console cache:clear --no-warmup && bin/console cache:warmup
+bin/console pimcore:datahub:graphql:clear-cache   # if Data Hub is installed
+```
+
+`dataquality:resync-schema` re-imports the JSONs under
+`src/Resources/install/` onto the existing definitions, triggers the
+`ALTER TABLE` DDL for added / removed columns, and regenerates the
+generated PHP classes under `var/classes/`. Existing rows receive `NULL`
+for any newly-added nullable columns. `pimcore:bundle:install` is one-shot
+and cannot be re-run for this purpose on Pimcore 11.
+
 ## Configuration
 
 ### Add field to object class
